@@ -1,0 +1,98 @@
+<?php
+
+/**
+ * Horus :: configuration.
+ *
+ * Copy to config.inc.php and edit. Every value below is the built-in default, so an
+ * empty (or absent) config.inc.php is a valid installation.
+ */
+
+// ---------------------------------------------------------------- tracking
+
+// Whether the compose "Enable tracking" checkbox starts ticked. Users can override
+// this in Settings > Horus.
+$config['horus_default_enabled'] = true;
+
+// Seconds after sending within which an image fetch is treated as a gateway prefetch
+// rather than a human open. Ten seconds catches antispam/link scanners without
+// misclassifying a recipient who genuinely opens the message straight away.
+$config['horus_prefetch_window'] = 10;
+
+// ------------------------------------------------------------------- URLs
+
+// Absolute URL of this webmail's entry point, used to build the pixel, click and
+// document links that go out inside messages.
+//
+// Leave empty to derive it from the request. SET THIS EXPLICITLY if Roundcube sits
+// behind a reverse proxy, is reachable on more than one hostname, or if you ever send
+// mail from CLI - a wrong value here means tracking links that go nowhere.
+// $config['horus_base_url'] = 'https://mail.example.com/index.php';
+
+// Key used to sign tracking URLs. Leave unset to derive one from `des_key`, which is
+// fine for a single instance. Set it explicitly if you run several front ends and
+// want links to stay valid across all of them.
+// $config['horus_secret'] = 'change-me-to-a-long-random-string';
+
+// ------------------------------------------------- tracked attachments
+
+// Where tracked attachments are stored on disk.
+//
+// STRONGLY RECOMMENDED: point this OUTSIDE the web root. Files are stored under
+// opaque, extension-less names and the directory gets a deny-all .htaccess, but a
+// path the web server cannot reach at all is the only guarantee.
+//
+// Defaults to <temp_dir>/horus-docs.
+// $config['horus_storage_dir'] = '/var/lib/roundcube/horus-docs';
+
+// Maximum size of a single tracked attachment.
+$config['horus_max_doc_size'] = '25M';
+
+// Delete staged uploads from composes that were never sent, after this many days.
+// Set to 0 to keep them forever.
+$config['horus_orphan_days'] = 7;
+
+// --------------------------------------------------------- bot detection
+
+// Extra CIDR blocks whose opens are always classified as bots. Users can add their
+// own in Settings > Horus; these apply to everyone.
+$config['horus_bot_ranges'] = [];
+
+// Additional CIDR blocks to treat as Apple mail infrastructure, on top of the
+// published relay list and 17.0.0.0/8.
+$config['horus_apple_ranges'] = [];
+
+// Download Apple's published iCloud Private Relay egress ranges. Set to false on an
+// air-gapped install; MPP detection then falls back to 17.0.0.0/8 only.
+$config['horus_fetch_apple_ranges'] = true;
+
+// How often to refresh that list, in seconds.
+$config['horus_ranges_ttl'] = 604800; // 7 days
+
+// Timeout for that download, in seconds.
+$config['horus_fetch_timeout'] = 8;
+
+// Ceiling on how many ranges are kept from that list, so an unexpectedly large
+// response can never exhaust the PHP memory limit.
+$config['horus_max_ranges'] = 20000;
+
+// ------------------------------------------------------------- forensics
+
+// Resolve the reverse DNS (PTR) name of every tracking hit at the moment it is
+// recorded. The name is often decisive - a host under proofpoint.com or
+// barracuda.com is a gateway however its user agent is dressed - and it also feeds
+// the classifier.
+//
+// Results are cached per address (including misses), so a repeat visitor costs no
+// DNS at all. Set to false if your server has no outbound DNS or you want the
+// tracking endpoints to do zero network I/O.
+$config['horus_reverse_dns'] = true;
+
+// ------------------------------------------------- per-recipient sending
+
+// Default for the compose "Track each recipient separately" toggle.
+//
+// With it off, a message to several people is one message: they share one pixel, so
+// you learn the message was opened but not by whom. With it on, each recipient gets
+// their own copy with its own tracking id, which is the only way to tell them apart -
+// at the cost of one SMTP transaction per recipient.
+$config['horus_split_recipients'] = false;

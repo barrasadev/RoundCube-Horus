@@ -1,0 +1,904 @@
+/**
+ * Horus :: dashboard, compose and message-view styling.
+ *
+ * Roles are declared once as custom properties and re-pointed for dark mode, so the
+ * rules below never carry a raw hex. The dark scope keys off Elastic's own
+ * `html.dark-mode` class - see the note on that block.
+ */
+
+.horus-root,
+.horus-msgbox,
+.horus-compose-options {
+	--horus-surface: #ffffff;
+	--horus-surface-2: #f6f8fa;
+	--horus-border: #e1e6eb;
+	--horus-text: #1f2328;
+	--horus-text-2: #59636e;
+	--horus-muted: #8b949e;
+	--horus-s1: #2a78d6; /* sent */
+	--horus-s2: #008300; /* opened */
+	--horus-s3: #e87ba4; /* clicked */
+	--horus-good: #0ca30c;
+	--horus-warning: #fab219;
+	--horus-critical: #d03b3b;
+}
+
+/*
+ * Dark mode follows ELASTIC, not the operating system: the skin toggles
+ * `html.dark-mode` from its own control, and if the OS were used instead these
+ * panels would go dark while the surrounding chrome stayed light.
+ *
+ * The dark steps are chosen for the dark surface (not an inversion of the light
+ * ones) and were validated as a set against it.
+ */
+html.dark-mode .horus-root,
+html.dark-mode .horus-msgbox,
+html.dark-mode .horus-compose-options {
+	--horus-surface: #1a1a19;
+	--horus-surface-2: #242423;
+	--horus-border: #383835;
+	--horus-text: #ffffff;
+	--horus-text-2: #c3c2b7;
+	--horus-muted: #8f8e85;
+	--horus-s1: #3987e5;
+	--horus-s2: #008300;
+	--horus-s3: #d55181;
+}
+
+/* ------------------------------------------------------------------ taskbar */
+
+/*
+ * The eye in the task bar.
+ *
+ * Elastic styles its task icons with `#taskmenu a:before { font-family: 'Icons' }` -
+ * an ID selector, so the override has to match that specificity. Rather than borrow
+ * a glyph from the skin's icon font, the pseudo-element carries the same SVG the rest
+ * of the plugin uses, inlined as a data: URI so nothing is fetched.
+ */
+#taskmenu a.button-horus:before {
+	content: "";
+	/*
+	 * Only the height and the image are set here. Elastic lays the icon out
+	 * differently per layout - a centred block above the label on a wide sidebar, a
+	 * small float beside it on a narrow one - so float, width and margin are left to
+	 * the skin and this button follows Mail, Contacts and Settings automatically.
+	 * `background-size` keeps the glyph icon-sized whatever width the skin gives it.
+	 */
+	height: 1.4em;
+	background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMiAxMnMzLjYtNi41IDEwLTYuNVMyMiAxMiAyMiAxMnMtMy42IDYuNS0xMCA2LjVTMiAxMiAyIDEyeiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjIuNiIvPjwvc3ZnPg==");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 1.2em 1.2em;
+}
+
+/* ------------------------------------------------------------------- icons */
+
+.horus-icon {
+	vertical-align: -.15em;
+	flex: none;
+}
+
+/* ---------------------------------------------------------------- dashboard */
+
+.horus-root {
+	padding: 18px 20px 40px;
+	color: var(--horus-text);
+	max-width: 1180px;
+	margin: 0 auto;
+	font-size: 14px;
+}
+
+.horus-card {
+	background: var(--horus-surface);
+	border: 1px solid var(--horus-border);
+	border-radius: 10px;
+	padding: 18px 20px;
+	margin-bottom: 18px;
+}
+
+.horus-card-title {
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--horus-text-2);
+	margin-bottom: 14px;
+}
+
+.horus-count {
+	color: var(--horus-muted);
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.horus-empty {
+	color: var(--horus-muted);
+	padding: 22px 0;
+	text-align: center;
+}
+
+/* ------------------------------------------------------------- stat tiles */
+
+.horus-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	gap: 14px;
+	margin-bottom: 18px;
+}
+
+.horus-tile {
+	background: var(--horus-surface);
+	border: 1px solid var(--horus-border);
+	border-radius: 10px;
+	padding: 16px 18px;
+}
+
+.horus-tile-value {
+	font-size: 30px;
+	font-weight: 650;
+	line-height: 1.1;
+	letter-spacing: -.02em;
+}
+
+.horus-tile-label {
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--horus-text-2);
+	margin-top: 6px;
+}
+
+.horus-tile-sub {
+	font-size: 12px;
+	color: var(--horus-muted);
+	margin-top: 3px;
+}
+
+/* A hairline of series colour, so the tiles key to the chart without tinting text. */
+.horus-tile-sent  { border-top: 3px solid var(--horus-s1); }
+.horus-tile-open  { border-top: 3px solid var(--horus-s2); }
+.horus-tile-maybe { border-top: 3px solid var(--horus-warning); }
+.horus-tile-click { border-top: 3px solid var(--horus-s3); }
+.horus-tile-docs  { border-top: 3px solid var(--horus-muted); }
+
+/* ----------------------------------------------------------------- chart */
+
+.horus-chart {
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+.horus-grid {
+	stroke: var(--horus-border);
+	stroke-width: 1;
+}
+
+.horus-axis {
+	fill: var(--horus-muted);
+	font-size: 11px;
+}
+
+.horus-line {
+	fill: none;
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+}
+
+.horus-endlabel {
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.horus-s1 { stroke: var(--horus-s1); }
+.horus-s2 { stroke: var(--horus-s2); }
+.horus-s3 { stroke: var(--horus-s3); }
+
+circle.horus-s1, text.horus-s1 { fill: var(--horus-s1); stroke: none; }
+circle.horus-s2, text.horus-s2 { fill: var(--horus-s2); stroke: none; }
+circle.horus-s3, text.horus-s3 { fill: var(--horus-s3); stroke: none; }
+
+.horus-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin-bottom: 6px;
+	font-size: 12px;
+	color: var(--horus-text-2);
+}
+
+.horus-legend-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.horus-swatch {
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	display: inline-block;
+}
+
+.horus-swatch.horus-s1 { background: var(--horus-s1); }
+.horus-swatch.horus-s2 { background: var(--horus-s2); }
+.horus-swatch.horus-s3 { background: var(--horus-s3); }
+
+/* --------------------------------------------------------------- controls */
+
+.horus-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: 18px;
+}
+
+.horus-controls .form-control {
+	max-width: 320px;
+	height: 36px;
+}
+
+/* ---------------------------------------------------------------- tables */
+
+.horus-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.horus-table th {
+	text-align: left;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--horus-muted);
+	padding: 0 10px 8px 0;
+	border-bottom: 1px solid var(--horus-border);
+	white-space: nowrap;
+}
+
+.horus-table td {
+	padding: 9px 10px 9px 0;
+	border-bottom: 1px solid var(--horus-border);
+	vertical-align: top;
+}
+
+.horus-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.horus-when { white-space: nowrap; color: var(--horus-text-2); }
+.horus-addr { font-weight: 500; word-break: break-all; }
+.horus-subject { color: var(--horus-text-2); max-width: 340px; }
+.horus-docs-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.horus-muted { color: var(--horus-muted); }
+
+/* ------------------------------------------------------------------ tags */
+
+.horus-tag {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 20px;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+	border: 1px solid transparent;
+}
+
+.horus-tag-ok      { background: rgba(12,163,12,.12);  color: var(--horus-good);     border-color: rgba(12,163,12,.35); }
+.horus-tag-unknown { background: rgba(250,178,25,.14); color: #9a6a00;               border-color: rgba(250,178,25,.4); }
+.horus-tag-bot     { background: rgba(208,59,59,.10);  color: var(--horus-critical); border-color: rgba(208,59,59,.3); }
+.horus-tag-link    { background: rgba(42,120,214,.12); color: var(--horus-s1);       border-color: rgba(42,120,214,.32); }
+.horus-tag-off     { background: transparent;          color: var(--horus-muted);    border-color: var(--horus-border); }
+
+/* The amber text needs a lighter step to clear contrast on a dark surface. */
+html.dark-mode .horus-tag-unknown { color: var(--horus-warning); }
+
+/* --------------------------------------------------------------- drawers */
+
+.horus-toggle {
+	background: transparent;
+	border: 1px solid var(--horus-border);
+	border-radius: 6px;
+	color: var(--horus-text-2);
+	font-size: 11px;
+	padding: 3px 10px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.horus-toggle:hover {
+	background: var(--horus-surface-2);
+	color: var(--horus-text);
+}
+
+.horus-drawer > td {
+	background: var(--horus-surface-2);
+	padding: 14px 16px !important;
+}
+
+.horus-drawer-section + .horus-drawer-section {
+	margin-top: 14px;
+}
+
+.horus-drawer-title {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--horus-muted);
+	margin-bottom: 8px;
+}
+
+.horus-docline {
+	padding: 4px 0;
+	font-size: 13px;
+}
+
+.horus-timeline {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.horus-timeline td {
+	padding: 5px 12px 5px 0;
+	vertical-align: top;
+	border-bottom: 1px solid var(--horus-border);
+}
+
+.horus-timeline tr:last-child td { border-bottom: 0; }
+
+.horus-t-when { white-space: nowrap; color: var(--horus-text-2); width: 1%; }
+.horus-t-what { white-space: nowrap; width: 1%; }
+
+/* `anywhere` rather than break-all: break-all splits ordinary words mid-syllable
+   ("prox y"), which makes the notes unreadable. This only breaks when a token has
+   no break opportunity at all, which is the URL/hostname case we actually need. */
+.horus-t-note {
+	color: var(--horus-muted);
+	overflow-wrap: anywhere;
+	width: auto;
+}
+
+.horus-ip {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 11px;
+}
+
+/* ------------------------------------------------- message view (Sent box) */
+
+.horus-msgbox {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	background: var(--horus-surface-2);
+	border: 1px solid var(--horus-border);
+	border-radius: 8px;
+	padding: 10px 14px;
+	margin: 8px 0;
+	color: var(--horus-text);
+	font-size: 13px;
+}
+
+.horus-msgbox .horus-eye { font-size: 16px; line-height: 1; }
+
+.horus-msgbox .horus-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	flex: 1 1 auto;
+}
+
+.horus-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 20px;
+	font-size: 12px;
+	border: 1px solid var(--horus-border);
+	background: var(--horus-surface);
+}
+
+.horus-badge-ok     { border-color: rgba(12,163,12,.4);  }
+.horus-badge-maybe  { border-color: rgba(250,178,25,.45); }
+.horus-badge-link   { border-color: rgba(42,120,214,.4); }
+.horus-badge-muted  { color: var(--horus-muted); }
+
+.horus-msgbox .horus-details {
+	flex: 1 1 100%;
+	margin-top: 8px;
+	border-top: 1px solid var(--horus-border);
+	padding-top: 10px;
+}
+
+/* ------------------------------------------------------------- compose UI */
+
+.horus-compose-options .horus-doclist:empty { display: none; }
+
+.horus-docitem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	font-size: 13px;
+}
+
+.horus-docitem .horus-docname { flex: 1 1 auto; word-break: break-all; }
+.horus-docitem .horus-docsize { color: var(--horus-muted); font-size: 12px; }
+
+.horus-docremove {
+	background: transparent;
+	border: 0;
+	color: var(--horus-muted);
+	cursor: pointer;
+	font-size: 15px;
+	line-height: 1;
+	padding: 0 4px;
+}
+
+.horus-docremove:hover { color: var(--horus-critical); }
+
+.horus-addbtn { margin-top: 4px; }
+
+.horus-hint {
+	font-size: 11px;
+	color: var(--horus-muted);
+	margin-top: 4px;
+	line-height: 1.4;
+}
+
+.horus-uploading { color: var(--horus-muted); font-size: 12px; padding: 4px 0; }
+
+/* ------------------------------------------------------------ small screens */
+
+@media screen and (max-width: 720px) {
+	.horus-root { padding: 12px 12px 32px; }
+	.horus-subject { display: none; }
+	.horus-table th:nth-child(3) { display: none; }
+	.horus-controls .form-control { max-width: none; flex: 1 1 100%; }
+}
+
+/* ------------------------------------------------------- event forensics */
+
+.horus-evline {
+	margin-top: 2px;
+	font-size: 11px;
+	color: var(--horus-text-2);
+}
+
+.horus-host {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 11px;
+	color: var(--horus-text-2);
+	word-break: break-all;
+}
+
+.horus-raw {
+	margin-top: 4px;
+	font-size: 11px;
+}
+
+.horus-raw > summary {
+	cursor: pointer;
+	color: var(--horus-muted);
+	list-style: none;
+}
+
+.horus-raw > summary::before {
+	content: "\25B8 ";
+}
+
+.horus-raw[open] > summary::before {
+	content: "\25BE ";
+}
+
+.horus-rawbody {
+	margin-top: 4px;
+	padding: 6px 8px;
+	background: var(--horus-surface);
+	border: 1px solid var(--horus-border);
+	border-radius: 6px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: var(--horus-text-2);
+	word-break: break-all;
+	line-height: 1.5;
+}
+
+/* --------------------------------------------------------- chart controls */
+
+.horus-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 14px;
+}
+
+.horus-card-head .horus-card-title { margin-bottom: 0; }
+
+.horus-ranges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+a.horus-range,
+button.horus-range {
+	display: inline-block;
+	padding: 4px 12px;
+	border: 1px solid var(--horus-border);
+	border-radius: 20px;
+	background: var(--horus-surface);
+	color: var(--horus-text-2);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.5;
+	text-decoration: none;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+a.horus-range:hover,
+button.horus-range:hover {
+	background: var(--horus-surface-2);
+	color: var(--horus-text);
+	text-decoration: none;
+}
+
+a.horus-range.selected {
+	background: var(--horus-s1);
+	border-color: var(--horus-s1);
+	color: #fff;
+}
+
+.horus-range-custom {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-left: 6px;
+}
+
+.horus-range-custom .form-control {
+	height: 30px;
+	width: auto;
+	min-width: 132px;
+	font-size: 12px;
+	padding: 2px 8px;
+}
+
+.horus-range-sep { color: var(--horus-muted); }
+
+/* ---------------------------------------------------------- legend toggle */
+
+button.horus-legend-item {
+	background: transparent;
+	border: 0;
+	padding: 2px 4px;
+	cursor: pointer;
+	color: var(--horus-text-2);
+	font-size: 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border-radius: 4px;
+}
+
+button.horus-legend-item:hover { background: var(--horus-surface-2); }
+
+button.horus-legend-item.horus-legend-off {
+	opacity: .4;
+	text-decoration: line-through;
+}
+
+.horus-legend-hint {
+	color: var(--horus-muted);
+	font-size: 11px;
+	margin-left: auto;
+}
+
+/* ------------------------------------------------------- hover & tooltip */
+
+.horus-figure { position: relative; }
+
+.horus-band {
+	fill: transparent;
+	cursor: crosshair;
+}
+
+.horus-band:hover { fill: rgba(127, 127, 127, .08); }
+
+.horus-crosshair {
+	stroke: var(--horus-muted);
+	stroke-width: 1;
+	stroke-dasharray: 3 3;
+	pointer-events: none;
+}
+
+.horus-tooltip {
+	display: none;
+	position: absolute;
+	z-index: 10;
+	min-width: 150px;
+	padding: 8px 10px;
+	background: var(--horus-surface);
+	border: 1px solid var(--horus-border);
+	border-radius: 8px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+	font-size: 12px;
+	pointer-events: none;
+}
+
+.horus-tip-head {
+	font-weight: 600;
+	color: var(--horus-text);
+	margin-bottom: 5px;
+}
+
+.horus-tip-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	line-height: 1.7;
+}
+
+.horus-tip-name { color: var(--horus-text-2); }
+
+.horus-tip-value {
+	margin-left: auto;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--horus-text);
+}
+
+/* ---------------------------------------------------------- table view */
+
+.horus-tableview {
+	margin-top: 14px;
+	font-size: 12px;
+}
+
+.horus-tableview > summary {
+	cursor: pointer;
+	color: var(--horus-muted);
+	list-style: none;
+}
+
+.horus-tableview > summary::before { content: "\25B8  "; }
+.horus-tableview[open] > summary::before { content: "\25BE  "; }
+
+.horus-tableview .horus-table { margin-top: 10px; }
+
+/* ------------------------------------------------ message list state pill */
+
+.horus-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 8px;
+	padding: 1px 8px 1px 6px;
+	border-radius: 20px;
+	border: 1px solid transparent;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.horus-pill svg { flex: none; }
+
+/*
+ * One colour per state, strongest signal wins. Orange means "sent and nothing came
+ * back", so it reads as pending rather than as an error.
+ */
+.horus-pill-notopened  { background: rgba(236,131,90,.14);  color: #b1502a; border-color: rgba(236,131,90,.4); }
+.horus-pill-maybe      { background: rgba(250,178,25,.16);  color: #8a5d00; border-color: rgba(250,178,25,.45); }
+.horus-pill-opened     { background: rgba(12,163,12,.14);   color: #0a7c0a; border-color: rgba(12,163,12,.4); }
+.horus-pill-clicked    { background: rgba(42,120,214,.14);  color: #1f5fae; border-color: rgba(42,120,214,.4); }
+.horus-pill-downloaded { background: rgba(112,72,204,.14);  color: #5b39a8; border-color: rgba(112,72,204,.4); }
+.horus-pill-untracked  { background: transparent;           color: #8b949e; border-color: #d8dee4; }
+
+html.dark-mode .horus-pill-notopened  { color: #ec835a; }
+html.dark-mode .horus-pill-maybe      { color: #fab219; }
+html.dark-mode .horus-pill-opened     { color: #35c035; }
+html.dark-mode .horus-pill-clicked    { color: #6aa6ee; }
+html.dark-mode .horus-pill-downloaded { color: #a98ae8; }
+html.dark-mode .horus-pill-untracked  { color: #8f8e85; border-color: #383835; }
+
+/* On a narrow list the colour and icon carry the meaning; drop the words. */
+@media screen and (max-width: 1100px) {
+	.horus-pill-text { display: none; }
+	.horus-pill { padding: 1px 5px; }
+}
+
+/* ------------------------------------------- collapsed Horus panel (message) */
+
+.horus-open {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 12px;
+	border: 1px solid var(--horus-border);
+	border-radius: 20px;
+	background: var(--horus-surface);
+	color: var(--horus-text-2);
+	font-size: 12px;
+	cursor: pointer;
+	max-width: 100%;
+}
+
+.horus-open:hover { background: var(--horus-surface-2); color: var(--horus-text); }
+
+.horus-open-label {
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--horus-text);
+}
+
+.horus-open-state { color: var(--horus-text-2); }
+
+.horus-open .horus-chev { transition: transform .15s ease; opacity: .6; }
+.horus-open[aria-expanded="true"] .horus-chev { transform: rotate(180deg); }
+
+.horus-state-opened     { border-color: rgba(12,163,12,.45); }
+.horus-state-clicked    { border-color: rgba(42,120,214,.45); }
+.horus-state-downloaded { border-color: rgba(112,72,204,.45); }
+.horus-state-maybe      { border-color: rgba(250,178,25,.5); }
+.horus-state-notopened  { border-color: rgba(236,131,90,.45); }
+
+.horus-panel {
+	margin-top: 10px;
+	padding: 12px 14px;
+	background: var(--horus-surface-2);
+	border: 1px solid var(--horus-border);
+	border-radius: 8px;
+}
+
+.horus-panel-section { margin-top: 12px; }
+
+.horus-selfnote {
+	margin-top: 8px;
+	font-size: 12px;
+	color: var(--horus-muted);
+}
+
+.horus-tag-self {
+	background: rgba(139,148,158,.14);
+	color: var(--horus-muted);
+	border-color: var(--horus-border);
+}
+
+/* ------------------------------------------- Horus entry in .header-links */
+
+/*
+ * The skin renders Details / Headers / Plain text in this row; the Horus report
+ * belongs with them rather than as a box in the message body. The state colour is
+ * carried on a leading dot so the row stays textual like its neighbours.
+ */
+a.horus-headerlink {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* The skin puts an icon-font glyph on ::before for links in this row; suppress it
+   so only our own dot shows. */
+a.horus-headerlink:before { content: none !important; }
+
+.horus-dot-state {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #8b949e;
+	flex: none;
+}
+
+.horus-dot-state.horus-state-opened     { background: #0ca30c; }
+.horus-dot-state.horus-state-clicked    { background: #2a78d6; }
+.horus-dot-state.horus-state-downloaded { background: #7048cc; }
+.horus-dot-state.horus-state-maybe      { background: #fab219; }
+.horus-dot-state.horus-state-notopened  { background: #ec835a; }
+
+/* -------------------------------------------------------- report dialog */
+
+/*
+ * The source block stays hidden in the message body; only the clone the dialog
+ * receives is shown. The !important is scoped to the dialog because Elastic makes
+ * that body a flex container, which would otherwise lay the header block and the
+ * timeline out as side-by-side columns.
+ */
+.ui-dialog-content .horus-msgdata {
+	display: block !important;
+	width: 100%;
+}
+
+.horus-msgdata {
+	--horus-surface: #ffffff;
+	--horus-surface-2: #f6f8fa;
+	--horus-border: #e1e6eb;
+	--horus-text: #1f2328;
+	--horus-text-2: #59636e;
+	--horus-muted: #8b949e;
+	--horus-s1: #2a78d6;
+	--horus-good: #0ca30c;
+	--horus-warning: #fab219;
+	--horus-critical: #d03b3b;
+	color: var(--horus-text);
+	font-size: 13px;
+}
+
+html.dark-mode .horus-msgdata {
+	--horus-surface: #1a1a19;
+	--horus-surface-2: #242423;
+	--horus-border: #383835;
+	--horus-text: #ffffff;
+	--horus-text-2: #c3c2b7;
+	--horus-muted: #8f8e85;
+	--horus-s1: #3987e5;
+}
+
+.horus-dialog-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding-bottom: 12px;
+	margin-bottom: 12px;
+	border-bottom: 1px solid var(--horus-border);
+}
+
+.horus-dialog-icon { color: var(--horus-text-2); }
+
+.horus-dialog-state {
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.horus-msgdata .horus-panel {
+	display: block;
+	margin-top: 0;
+	padding: 0;
+	background: transparent;
+	border: 0;
+}
+
+.horus-msgdata .horus-timeline { table-layout: auto; width: 100%; }
+
+.horus-msgdata .horus-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* --------------------------------------------------- mark-as-bot control */
+
+.horus-markbot {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 6px;
+	padding: 1px 8px;
+	border: 1px solid var(--horus-border);
+	border-radius: 20px;
+	background: transparent;
+	color: var(--horus-muted);
+	font-size: 10px;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.horus-markbot:hover {
+	background: rgba(208,59,59,.1);
+	border-color: rgba(208,59,59,.4);
+	color: var(--horus-critical);
+}

@@ -1,0 +1,22 @@
+<roundcube:include file="includes/layout.html" />
+<roundcube:include file="includes/menu.html" />
+
+<h1 class="voice"><roundcube:label name="horus.horus" /></h1>
+
+<div id="layout-content" class="selected" role="main">
+	<div class="header">
+		<a class="button icon task-menu-button" href="#menu"><span class="inner"><roundcube:label name="menu" /></span></a>
+		<span class="header-title"><roundcube:label name="horus.dashboardtitle" /></span>
+	</div>
+	<!--
+		`content` is the class Elastic gives a single-pane scrollable body
+		(#layout-content > .content { height:100%; overflow:auto; flex:1 }). A plain
+		`scroller` does not scroll here: the skin only makes that overflow inside a
+		.listbox or on #layout-content.only, so the dashboard was clipped instead.
+	-->
+	<div class="content">
+		<roundcube:object name="plugin.horus_dashboard" />
+	</div>
+</div>
+
+<roundcube:include file="includes/footer.html" />

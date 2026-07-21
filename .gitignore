@@ -1,0 +1,6 @@
+# Local development environment: throwaway Docker stack, test harness and the
+# real mail credentials it runs against. Not part of the plugin.
+dev/
+
+*.log
+.DS_Store

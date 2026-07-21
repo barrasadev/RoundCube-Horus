@@ -1,0 +1,17 @@
+{
+    "name": "horus/horus",
+    "type": "roundcube-plugin",
+    "description": "End-to-end, self-hosted email tracking for Roundcube: pixel opens with bot classification, signed click tracking and tracked attachments served by the webmail itself.",
+    "homepage": "https://github.com/barrasa/roundcube-horus",
+    "license": "GPL-3.0-or-later",
+    "version": "1.0.0",
+    "require": {
+        "php": ">=7.4",
+        "roundcube/plugin-installer": ">=0.1.6"
+    },
+    "extra": {
+        "roundcube": {
+            "min-version": "1.5.0"
+        }
+    }
+}
