@@ -3,9 +3,9 @@
 /**
  * Horus :: coloured folders.
  *
- * A colour picked in the folder's own settings page, remembered per user, and
- * applied to that folder in the mail sidebar - the folder name and its icon, and
- * nothing else. Messages, headers and the message list are left alone.
+ * A colour picked in the folder's own settings page, remembered per user, and used
+ * to paint that folder's row in the mail sidebar - the row and nothing else.
+ * Messages, headers and the message list are left alone.
  *
  * The colours live in the user's preferences keyed by IMAP folder name, so no
  * schema and no server-side state are involved; renaming a folder carries the
@@ -17,6 +17,12 @@ class horus_folders
 {
     /** User preference holding [folder name => #rrggbb]. */
     const PREF = 'horus_folder_colors';
+
+    /**
+     * The luminance at which black and white contrast equally against a background:
+     * above it black is the readable choice, below it white is.
+     */
+    const CROSSOVER = 0.179;
 
     /** Offered as swatches in the folder form. A custom colour is always allowed. */
     const PALETTE = [
@@ -86,16 +92,51 @@ class horus_folders
             // Attribute selector, not #id: the identifier is base64url, so it can
             // start with a digit or a hyphen and would not be a valid CSS ident.
             $li = '#mailboxlist li[id="rcmli' . rcube_utils::html_identifier($folder, true) . '"]';
+            $fg = self::foreground($color);
 
-            // The selected folder keeps its own foreground - it sits on a highlighted
-            // background and coloured text on it reads badly - but the icon stays
-            // coloured so the folder is still recognisable while it is open.
-            $css .= $li . ':not(.selected) > a,' . "\n"
-                 .  $li . ':not(.selected) > a::before,' . "\n"
-                 .  $li . '.selected > a::before { color: ' . $color . '; }' . "\n";
+            // The row is painted, so the text and the icon have to be re-set against
+            // it - Elastic's own foreground is chosen for a white list.
+            $css .= $li . ' > a { background-color: ' . $color . '; color: ' . $fg . '; }' . "\n"
+                 .  $li . ' > a::before,' . "\n"
+                 .  $li . ' > a .unreadcount { color: ' . $fg . '; }' . "\n";
+
+            // Hover and selection are Elastic's own background changes, which this
+            // rule has just overridden. They come back as a translucent wash over the
+            // folder's colour, so they read the same whatever colour was picked.
+            $css .= $li . ' > a:hover { background-image: ' . self::wash(0.10) . '; }' . "\n"
+                 .  $li . '.selected > a { background-image: ' . self::wash(0.22) . '; }' . "\n";
         }
 
         return $css;
+    }
+
+    /**
+     * Black or white, whichever is readable on the given background.
+     *
+     * Uses the WCAG relative luminance rather than a plain average: a saturated
+     * green and a saturated blue of the same "brightness" need opposite text.
+     */
+    public static function foreground($color)
+    {
+        $channels = [];
+
+        foreach ([1, 3, 5] as $offset) {
+            $c = hexdec(substr($color, $offset, 2)) / 255;
+            $channels[] = $c <= 0.03928 ? $c / 12.92 : pow(($c + 0.055) / 1.055, 2.4);
+        }
+
+        $luminance = 0.2126 * $channels[0] + 0.7152 * $channels[1] + 0.0722 * $channels[2];
+
+        return $luminance > self::CROSSOVER ? '#1f2328' : '#ffffff';
+    }
+
+    /**
+     * A flat overlay used to darken a row - hover and selection - without needing to
+     * know the colour underneath it.
+     */
+    private static function wash($alpha)
+    {
+        return 'linear-gradient(rgba(0, 0, 0, ' . $alpha . '), rgba(0, 0, 0, ' . $alpha . '))';
     }
 
     // ------------------------------------------------------------------- form
@@ -140,7 +181,7 @@ class horus_folders
             ], '&nbsp;');
 
         // The native picker doubles as the custom-colour swatch: it shows the current
-        // colour and opens the OS picker when clicked.
+        // colour and opens the operating system's colour map when clicked.
         $custom = html::tag('input', [
                 'type'  => 'color',
                 'class' => 'horus-swatch horus-swatch-custom',
@@ -149,14 +190,52 @@ class horus_folders
                 'title' => $this->plugin->gettext('customfoldercolor'),
             ]);
 
+        // ...and the same colour as text, for anyone who arrives with a hex in hand.
+        $hex = html::tag('input', [
+                'type'         => 'text',
+                'class'        => 'horus-color-hex form-control',
+                'id'           => 'horus-color-hex',
+                'value'        => $value,
+                'size'         => 9,
+                'maxlength'    => 7,
+                'spellcheck'   => 'false',
+                'autocomplete' => 'off',
+                'placeholder'  => '#rrggbb',
+                'title'        => $this->plugin->gettext('foldercolorhex'),
+            ]);
+
         $hidden = new html_hiddenfield(['name' => '_horus_color', 'id' => 'horus-color-value', 'value' => $value]);
+
+        // What the sidebar will look like, painted by the same rules that will paint
+        // it - so the choice is made against the result rather than against a chip.
+        $preview = html::div('horus-color-preview',
+            html::span('horus-color-preview-row', rcube::Q($this->display_name($folder))));
 
         $args['form']['props']['fieldsets']['settings']['content']['horus_color'] = [
             'label' => $this->plugin->gettext('foldercolor'),
-            'value' => html::div('horus-color-picker', $none . $swatches . $custom . $hidden->show()),
+            'value' => html::div('horus-color-picker',
+                html::div('horus-color-swatches', $none . $swatches . $custom . $hex)
+                . $preview . $hidden->show()),
         ];
 
         return $args;
+    }
+
+    /**
+     * The folder's own name as the sidebar shows it: the leaf, decoded, localised
+     * for the special folders. Empty for a folder that does not exist yet.
+     */
+    private function display_name($folder)
+    {
+        if ($folder === '') {
+            return $this->plugin->gettext('foldercolor');
+        }
+
+        $path = explode($this->delimiter(), $folder);
+        $leaf = rcube_charset::convert(array_pop($path), 'UTF7-IMAP');
+        $key  = rcmail_action::folder_classname($folder);
+
+        return $key && $this->rc->text_exists($key) ? $this->rc->gettext($key) : $leaf;
     }
 
     // ------------------------------------------------------------------ write

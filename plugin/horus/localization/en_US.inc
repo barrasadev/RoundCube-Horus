@@ -134,6 +134,7 @@ $labels['prefsfoldercolorshint'] = 'Adds a colour picker to each folder’s sett
 $labels['foldercolor']       = 'Colour';
 $labels['nofoldercolor']     = 'No colour';
 $labels['customfoldercolor'] = 'Custom colour…';
+$labels['foldercolorhex']    = 'Colour as a hex value, for example #8e4ec6';
 
 // Chart range picker and interaction
 $labels['range7']     = '7 days';

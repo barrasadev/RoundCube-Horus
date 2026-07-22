@@ -83,9 +83,12 @@ number.
   *opened* back to *possibly opened*.
 
 **Coloured folders**
-- A colour picker in each folder's own settings page: eight presets, any custom
-  colour, or none. The folder is then drawn in that colour in the mail sidebar -
-  its name and its icon, and nothing else. Messages are never coloured.
+- A colour picker in each folder's own settings page: eight presets, the browser's
+  colour map, a hex value typed by hand, or none - with a live preview of the row.
+- The folder's **row in the mail sidebar is painted** in that colour, and nothing
+  else is: messages, the message list and the folder manager are untouched. The
+  text and icon flip between black and white by WCAG luminance, so every colour
+  stays readable, and hover and selection come back as a wash over it.
 - The colour follows a rename (with its subfolders) and goes away with a delete.
 - Nothing to do with tracking, so it is **off by default** and switched on per user
   in Settings > Horus. While it is off, the folder form is left exactly as

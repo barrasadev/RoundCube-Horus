@@ -1072,10 +1072,16 @@ html.dark-mode .horus-msgdata {
 
 .horus-color-picker {
 	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 2px 0;
+}
+
+.horus-color-swatches {
+	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
-	padding: 2px 0;
 }
 
 .horus-swatch {
@@ -1107,9 +1113,39 @@ html.dark-mode .horus-msgdata {
 		var(--horus-surface);
 }
 
-/* The native colour input is the custom swatch: same circle, no chrome around the
-   well the browser draws inside it. */
+/* The native colour input is the custom swatch - clicking it opens the browser's
+   colour map - so it gets the same circle with none of the chrome the browser
+   draws around the well inside it. */
 .horus-swatch-custom { background: none; overflow: hidden; }
 .horus-swatch-custom::-webkit-color-swatch-wrapper { padding: 0; }
 .horus-swatch-custom::-webkit-color-swatch { border: none; border-radius: 50%; }
 .horus-swatch-custom::-moz-color-swatch { border: none; border-radius: 50%; }
+
+/* The same colour as text, for a hex arriving from somewhere else. */
+.horus-color-hex {
+	width: 11ch;
+	flex: none;
+	font-family: monospace;
+	text-transform: lowercase;
+}
+
+.horus-color-hex.error { border-color: var(--horus-critical); }
+
+/* What the sidebar will look like. Sized and spaced like an Elastic folder row so
+   the preview is a preview, not an approximation. */
+.horus-color-preview-row {
+	display: block;
+	max-width: 15rem;
+	padding: 8px 12px;
+	border: 1px solid var(--horus-border);
+	border-radius: 4px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.horus-color-preview-row.none {
+	color: var(--horus-text-2);
+	background: var(--horus-surface);
+}
