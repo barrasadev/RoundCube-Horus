@@ -20,6 +20,7 @@ window.rcmail && rcmail.addEventListener('init', function () {
 
     if (rcmail.env.action === 'compose') {
         horus_compose_init();
+        horus_split_watch();
     }
 
     horus_chart_init();
@@ -140,7 +141,8 @@ function horus_mark_bot(ip) {
 var HORUS_ROW_ICONS = {
     notopened:  '<path d="M21.5 3.5L2.5 10.2l7.3 2.9 2.9 7.3z"/><path d="M21.5 3.5L9.8 13.1"/>',
     maybe:      '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.2 2.4c-.6.2-1 .8-1 1.4v.4"/><path d="M11.7 17h.01"/>',
-    opened:     '<path d="M3 7l9 6 9-6"/><path d="M3 7h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8.5 12.5l2.5 2.5 4.5-4.5"/>',
+    // An eye: "opened" means someone looked at it, which an envelope did not say.
+    opened:     '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>',
     clicked:    '<path d="M10 13a5 5 0 0 0 7.1.4l2.5-2.5a5 5 0 0 0-7.1-7.1L11 5.3"/><path d="M14 11a5 5 0 0 0-7.1-.4l-2.5 2.5a5 5 0 0 0 7.1 7.1L13 18.7"/>',
     downloaded: '<path d="M12 3v12"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
     untracked:  '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'
@@ -199,18 +201,9 @@ function horus_decorate_row(event) {
             + ' stroke="currentColor" stroke-width="2.2" stroke-linecap="round"'
             + ' stroke-linejoin="round" aria-hidden="true">' + HORUS_ROW_ICONS[state] + '</svg>';
 
-        // Only the open state is spelled out. Three worded badges plus a recipient
-        // list overflow the row and get clipped, so the follow-up states ride as
-        // icon and colour alone, with the wording on hover.
-        if (i === 0) {
-            var text = document.createElement('span');
-            text.className = 'horus-pill-text';
-            text.textContent = labels[state] || state;
-            pill.appendChild(text);
-        }
-        else {
-            pill.classList.add('horus-pill-compact');
-        }
+        // Icon and colour only. The words were repeating what the colour already
+        // said and crowded the row; the label stays on hover.
+        pill.classList.add('horus-pill-compact');
 
         cell.appendChild(pill);
     });
@@ -346,6 +339,79 @@ function horus_set_busy(busy) {
     }
     else if (!busy && existing) {
         existing.parentNode.removeChild(existing);
+    }
+}
+
+/* ------------------------------------------- per-recipient option visibility */
+
+/**
+ * The "track each recipient separately" option only means anything with more than
+ * one recipient, so it is hidden until there is one.
+ *
+ * Elastic's recipient widget rewrites the fields programmatically as chips are
+ * added and removed, so this listens for input AND watches the DOM: typing alone
+ * would miss a recipient inserted from the address book.
+ */
+function horus_split_watch() {
+    var group = document.getElementById('horus-split-group');
+
+    if (!group) {
+        return;
+    }
+
+    var form = document.getElementById('compose-content') || document.body;
+
+    horus_split_update();
+
+    ['input', 'change'].forEach(function (evt) {
+        form.addEventListener(evt, horus_split_update, true);
+    });
+
+    if (window.MutationObserver) {
+        new MutationObserver(horus_split_update).observe(form, {
+            childList: true, subtree: true, characterData: true
+        });
+    }
+}
+
+/** Count the addresses currently in To, Cc and Bcc. */
+function horus_recipient_count() {
+    var seen = {};
+
+    ['_to', '_cc', '_bcc'].forEach(function (name) {
+        var fields = document.querySelectorAll('[name="' + name + '"]');
+
+        for (var i = 0; i < fields.length; i++) {
+            String(fields[i].value || '').split(',').forEach(function (part) {
+                var addr = part.trim().toLowerCase();
+
+                // Only count something that looks like an address, so a half-typed
+                // name does not flip the option on and off while you type.
+                if (addr.indexOf('@') > 0) {
+                    seen[addr] = true;
+                }
+            });
+        }
+    });
+
+    return Object.keys(seen).length;
+}
+
+function horus_split_update() {
+    var group = document.getElementById('horus-split-group');
+
+    if (!group) {
+        return;
+    }
+
+    var many = horus_recipient_count() > 1;
+    group.style.display = many ? '' : 'none';
+
+    // Never send the flag when the option is not on screen: a value left over from
+    // an earlier state would silently split a single-recipient message.
+    var box = document.getElementById('horus-split');
+    if (box && !many) {
+        box.checked = false;
     }
 }
 

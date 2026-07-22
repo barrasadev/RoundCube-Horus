@@ -90,6 +90,10 @@ class horus_compose
 
         // Only meaningful with more than one recipient, and it changes how the mail
         // actually goes out, so it is off unless the user asks for it.
+        //
+        // Hidden to start with: horus.js reveals it as soon as a second recipient is
+        // entered. Starting hidden rather than shown avoids it flashing on every
+        // compose, which is the common case of writing to one person.
         $split_box = new html_checkbox([
             'value' => 1,
             'id'    => 'horus-split',
@@ -97,7 +101,8 @@ class horus_compose
             'class' => 'form-check-input',
         ]);
 
-        $split = html::div('form-group form-check row',
+        $split = html::div(['class' => 'form-group form-check row', 'id' => 'horus-split-group',
+            'style' => 'display:none'],
             html::label(['for' => 'horus-split', 'class' => 'col-form-label col-6'],
                 rcube::Q($this->plugin->gettext('splitrecipients'))
             )

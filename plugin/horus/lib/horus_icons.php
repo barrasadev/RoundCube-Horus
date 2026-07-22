@@ -16,8 +16,8 @@ class horus_icons
 {
     /** Path data only; the wrapper below supplies the shared attributes. */
     const PATHS = [
-        // An open envelope with a check - the message was read.
-        'opened'      => '<path d="M3 7l9 6 9-6"/><path d="M3 7h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8.5 12.5l2.5 2.5 4.5-4.5"/>',
+        // An eye - the message was looked at. An envelope only said it was mail.
+        'opened'      => '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>',
 
         // A question mark inside a circle - something fetched it, we cannot say who.
         'maybe'       => '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.2 2.4c-.6.2-1 .8-1 1.4v.4"/><path d="M11.7 17h.01"/>',
