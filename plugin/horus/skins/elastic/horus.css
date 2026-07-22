@@ -8,7 +8,8 @@
 
 .horus-root,
 .horus-msgbox,
-.horus-compose-options {
+.horus-compose-options,
+.horus-color-picker {
 	--horus-surface: #ffffff;
 	--horus-surface-2: #f6f8fa;
 	--horus-border: #e1e6eb;
@@ -33,7 +34,8 @@
  */
 html.dark-mode .horus-root,
 html.dark-mode .horus-msgbox,
-html.dark-mode .horus-compose-options {
+html.dark-mode .horus-compose-options,
+html.dark-mode .horus-color-picker {
 	--horus-surface: #1a1a19;
 	--horus-surface-2: #242423;
 	--horus-border: #383835;
@@ -1062,3 +1064,52 @@ html.dark-mode .horus-msgdata {
 .horus-hit + .horus-hit { border-top: 1px solid var(--horus-border); }
 .horus-hit-when { color: var(--horus-text); font-weight: 600; white-space: nowrap; }
 .horus-hit-where { color: var(--horus-text-2); }
+
+/* --------------------------------------------------------- coloured folders */
+
+/* The picker in Settings > Folders > folder properties. Swatches are buttons, so
+   they are reachable by keyboard and carry no click handler of their own in CSS. */
+
+.horus-color-picker {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 0;
+}
+
+.horus-swatch {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--horus-border);
+	border-radius: 50%;
+	cursor: pointer;
+	box-shadow: none;
+	transition: transform .08s ease;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.horus-swatch:hover { transform: scale(1.12); }
+
+/* The ring, not a border, so the swatch keeps its exact size when picked. */
+.horus-swatch.selected {
+	box-shadow: 0 0 0 2px var(--horus-surface), 0 0 0 4px var(--horus-text-2);
+}
+
+/* "No colour": a diagonal strike over the plain surface. */
+.horus-swatch-none {
+	background:
+		linear-gradient(to top right,
+			transparent calc(50% - 1px), var(--horus-text-2) calc(50% - 1px),
+			var(--horus-text-2) calc(50% + 1px), transparent calc(50% + 1px)),
+		var(--horus-surface);
+}
+
+/* The native colour input is the custom swatch: same circle, no chrome around the
+   well the browser draws inside it. */
+.horus-swatch-custom { background: none; overflow: hidden; }
+.horus-swatch-custom::-webkit-color-swatch-wrapper { padding: 0; }
+.horus-swatch-custom::-webkit-color-swatch { border: none; border-radius: 50%; }
+.horus-swatch-custom::-moz-color-swatch { border: none; border-radius: 50%; }

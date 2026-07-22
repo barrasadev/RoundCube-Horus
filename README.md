@@ -82,6 +82,15 @@ number.
   everything it already did is re-classified, which can correctly move a message from
   *opened* back to *possibly opened*.
 
+**Coloured folders**
+- A colour picker in each folder's own settings page: eight presets, any custom
+  colour, or none. The folder is then drawn in that colour in the mail sidebar -
+  its name and its icon, and nothing else. Messages are never coloured.
+- The colour follows a rename (with its subfolders) and goes away with a delete.
+- Nothing to do with tracking, so it is **off by default** and switched on per user
+  in Settings > Horus. While it is off, the folder form is left exactly as
+  Roundcube renders it.
+
 ---
 
 ## Installation
@@ -298,6 +307,7 @@ was exercised), Roundcube versions other than 1.6.x, and skins other than Elasti
 horus/
 ├── horus.php                  hook wiring, send-time rewriting
 ├── horus.js                   compose UI, detail drawers
+├── horus_folders.js           the folder colour picker
 ├── config.inc.php.dist        every option, documented
 ├── lib/
 │   ├── horus_db.php           self-applying schema migrations
@@ -318,6 +328,7 @@ horus/
 │   ├── horus_msgview.php      Sent-folder status block
 │   ├── horus_list.php         status pills in the message list
 │   ├── horus_prefs.php        settings section
+│   ├── horus_folders.php      coloured folders
 │   └── horus_dashboard.php    the dashboard
 ├── SQL/{mysql,postgres,sqlite}/
 ├── skins/elastic/

@@ -74,6 +74,17 @@ class horus_prefs
                 . html::div('horus-hint', rcube::Q($this->plugin->gettext('prefsprefetchwindowhint'))),
         ];
 
+        // --- coloured folders -------------------------------------------------
+        $blocks['folders']['name'] = $this->plugin->gettext('prefsfolders');
+
+        $colors = new html_checkbox(['value' => 1, 'id' => 'horus_folder_colors', 'name' => '_horus_folder_colors']);
+
+        $blocks['folders']['options']['horus_folder_colors_enabled'] = [
+            'title'   => html::label('horus_folder_colors', rcube::Q($this->plugin->gettext('prefsfoldercolors'))),
+            'content' => $colors->show(!empty($settings['horus_folder_colors_enabled']) ? 1 : 0)
+                . html::div('horus-hint', rcube::Q($this->plugin->gettext('prefsfoldercolorshint'))),
+        ];
+
         // --- bot ranges -------------------------------------------------------
         $blocks['bots']['name'] = $this->plugin->gettext('prefsbots');
 
@@ -133,6 +144,7 @@ class horus_prefs
 
         $args['prefs']['horus_default_enabled'] = (bool) rcube_utils::get_input_value('_horus_default_enabled', rcube_utils::INPUT_POST);
         $args['prefs']['horus_split_recipients'] = (bool) rcube_utils::get_input_value('_horus_split', rcube_utils::INPUT_POST);
+        $args['prefs']['horus_folder_colors_enabled'] = (bool) rcube_utils::get_input_value('_horus_folder_colors', rcube_utils::INPUT_POST);
 
         $window = intval(rcube_utils::get_input_value('_horus_prefetch_window', rcube_utils::INPUT_POST));
         $args['prefs']['horus_prefetch_window'] = max(0, min(3600, $window));

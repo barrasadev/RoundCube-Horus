@@ -127,6 +127,14 @@ $labels['prefsrefreshrangeshint'] = 'Downloads Apple’s published iCloud Privat
 $labels['prefsrangesupdated']     = 'Apple ranges updated.';
 $labels['prefsrangesfailed']      = 'Could not download the Apple ranges.';
 
+// Coloured folders
+$labels['prefsfolders']          = 'Folders';
+$labels['prefsfoldercolors']     = 'Coloured folders';
+$labels['prefsfoldercolorshint'] = 'Adds a colour picker to each folder’s settings. The colour is used for that folder in the sidebar only — messages are never coloured.';
+$labels['foldercolor']       = 'Colour';
+$labels['nofoldercolor']     = 'No colour';
+$labels['customfoldercolor'] = 'Custom colour…';
+
 // Chart range picker and interaction
 $labels['range7']     = '7 days';
 $labels['range30']    = '30 days';

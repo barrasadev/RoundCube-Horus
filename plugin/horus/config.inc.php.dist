@@ -101,6 +101,16 @@ $config['horus_reverse_dns'] = true;
 // at the cost of one SMTP transaction per recipient.
 $config['horus_split_recipients'] = false;
 
+// --------------------------------------------------------- coloured folders
+
+// Default for the "Coloured folders" preference.
+//
+// It has nothing to do with tracking: it adds a colour picker to each folder's
+// settings page and paints that folder in the mail sidebar. Off by default, so the
+// folder form is left untouched for anyone who has not asked for it. Each user can
+// turn it on for themselves in Settings > Horus.
+$config['horus_folder_colors_enabled'] = false;
+
 // ------------------------------------------------------------- geolocation
 
 // Resolve the city/country of an address that opened a message.

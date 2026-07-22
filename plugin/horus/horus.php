@@ -135,6 +135,18 @@ class horus extends rcube_plugin
             $this->add_hook('preferences_sections_list', [$this, 'prefs_sections']);
             $this->add_hook('preferences_list', [$this, 'prefs_list']);
             $this->add_hook('preferences_save', [$this, 'prefs_save']);
+
+            // Folder colours: picked in the folder's own properties page. Opt-in, so
+            // a user who has not asked for it sees no extra field anywhere.
+            require_once __DIR__ . '/lib/horus_folders.php';
+
+            if (horus_folders::enabled()) {
+                $this->add_hook('folder_form', [$this, 'folder_form']);
+                $this->add_hook('folder_create', [$this, 'folder_create']);
+                $this->add_hook('folder_update', [$this, 'folder_update']);
+                $this->add_hook('folder_rename', [$this, 'folder_rename']);
+                $this->add_hook('folder_delete', [$this, 'folder_delete']);
+            }
         }
 
         if ($this->rc->output && !$this->rc->output->framed) {
@@ -155,6 +167,20 @@ class horus extends rcube_plugin
         }
 
         $this->include_stylesheet($this->local_skin_path() . '/horus.css');
+
+        // Folder colours. The rules are keyed by the list item Roundcube renders, so
+        // they are emitted once per page rather than woven into the folder markup.
+        // add_header() is on rcmail_output_html only, so the narrowed type is held in
+        // its own variable rather than reached through $this->rc->output.
+        $output = $this->rc->output;
+
+        if ($task == 'mail' && $output instanceof rcmail_output_html) {
+            require_once __DIR__ . '/lib/horus_folders.php';
+
+            if ($css = horus_folders::styles()) {
+                $output->add_header(html::tag('style', ['type' => 'text/css'], $css));
+            }
+        }
 
         return $args;
     }
@@ -656,6 +682,40 @@ class horus extends rcube_plugin
         require_once __DIR__ . '/lib/horus_prefs.php';
 
         return (new horus_prefs($this, $this->store()))->prefs_save($args);
+    }
+
+    // ------------------------------------------------------- coloured folders
+
+    public function folder_form($args)
+    {
+        return $this->folders()->folder_form($args);
+    }
+
+    public function folder_create($args)
+    {
+        return $this->folders()->folder_create($args);
+    }
+
+    public function folder_update($args)
+    {
+        return $this->folders()->folder_update($args);
+    }
+
+    public function folder_rename($args)
+    {
+        return $this->folders()->folder_rename($args);
+    }
+
+    public function folder_delete($args)
+    {
+        return $this->folders()->folder_delete($args);
+    }
+
+    private function folders()
+    {
+        require_once __DIR__ . '/lib/horus_folders.php';
+
+        return new horus_folders($this);
     }
 
     // -------------------------------------------------------------- mark a bot

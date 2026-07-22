@@ -19,6 +19,7 @@ class horus_settings
         'horus_bot_ranges'       => [],
         'horus_classify_opens'   => true,
         'horus_split_recipients' => false,
+        'horus_folder_colors_enabled' => false,
     ];
 
     /** @var array Memoised per user id */
