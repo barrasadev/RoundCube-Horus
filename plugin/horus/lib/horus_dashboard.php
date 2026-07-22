@@ -705,20 +705,21 @@ class horus_dashboard
             return $out;
         }
 
+        $geo  = self::geo_for($events, $this->store);
         $rows = '';
 
         foreach ($events as $event) {
             $rows .= html::tag('tr', null,
                 html::tag('td', 'horus-t-when', rcube::Q($this->when($event['created_at'])))
                 . html::tag('td', 'horus-t-what', $this->event_tag($event))
-                . html::tag('td', 'horus-t-note', $this->event_note($event))
+                . html::tag('td', 'horus-t-note', $this->event_note($event, $geo))
             );
         }
 
         return $out . html::div('horus-drawer-section',
             html::div('horus-drawer-title', rcube::Q($this->t('timeline')))
             . html::tag('table', 'horus-timeline', html::tag('tbody', null, $rows))
-        );
+        ) . self::render_client_table($events, $this->rc, $geo);
     }
 
     private function event_tag($event)
@@ -744,9 +745,9 @@ class horus_dashboard
         return rcube::Q($event['type']);
     }
 
-    private function event_note($event)
+    private function event_note($event, array $geo = [])
     {
-        return self::render_event_note($event, $this->rc);
+        return self::render_event_note($event, $this->rc, $geo);
     }
 
     /**
@@ -756,7 +757,13 @@ class horus_dashboard
      *
      * Shared with the sent-message box so both views show identical detail.
      */
-    public static function render_event_note($event, $rc)
+    /**
+     * Everything recorded about one event, as three lines: what it touched and why
+     * it was classified that way, who the client was, and where it came from.
+     *
+     * @param array $geo Cached location for this event's address, if any
+     */
+    public static function render_event_note($event, $rc, array $geo = [])
     {
         $head = [];
 
@@ -771,69 +778,125 @@ class horus_dashboard
             $head[] = rcube::Q($rc->gettext($key));
         }
 
-        // Client identity line.
-        $who = [];
-
-        if (!empty($event['client'])) {
-            $who[] = rcube::Q(trim($event['client'] . ' ' . ($event['client_ver'] ?? '')));
-        }
-        if (!empty($event['os'])) {
-            $who[] = rcube::Q($event['os']);
-        }
-        if (!empty($event['device'])) {
-            $who[] = rcube::Q($event['device']);
-        }
-        if (!empty($event['language'])) {
-            $who[] = rcube::Q(strtok($event['language'], ','));
-        }
-
-        // Network identity line. The reverse DNS name is the most informative field
-        // here, so it is shown next to the address rather than hidden in the raw data.
-        $net = [];
-
-        if (!empty($event['ip'])) {
-            $net[] = html::span('horus-ip', rcube::Q($event['ip'])
-                . (!empty($event['ip_version']) ? ' (v' . intval($event['ip_version']) . ')' : ''));
-
-            // Offer the override only where it would change something: an event
-            // already classified as a bot, or as the user's own view, would not move.
-            if ($event['status'] !== horus_store::STATUS_BOT
-                && $event['status'] !== horus_store::STATUS_SELF
-            ) {
-                $net[] = html::tag('button', [
-                    'type'    => 'button',
-                    'class'   => 'horus-markbot',
-                    'title'   => $rc->gettext('horus.markbottitle'),
-                    'onclick' => "rcmail.command('plugin.horus.markbot', '" . rcube::JQ($event['ip']) . "')",
-                ], horus_icons::get('bot', '', 11) . ' ' . rcube::Q($rc->gettext('horus.markbot')));
-            }
-        }
-        if (!empty($event['hostname'])) {
-            $net[] = html::span('horus-host', rcube::Q($event['hostname']));
-        }
-        if (!empty($event['forwarded']) && $event['forwarded'] !== ($event['ip'] ?? '')) {
-            $net[] = html::span('horus-muted', 'via ' . rcube::Q($event['forwarded']));
-        }
-        if (!empty($event['referer'])) {
-            $net[] = html::span('horus-muted', 'ref ' . rcube::Q(mb_strimwidth($event['referer'], 0, 50, '...')));
-        }
-
         $out = implode(' &middot; ', $head);
 
-        if ($who) {
-            $out .= html::div('horus-evline', implode(' &middot; ', $who));
-        }
-        if ($net) {
-            $out .= html::div('horus-evline', implode(' &middot; ', $net));
+        if ($who = self::client_line($event)) {
+            $out .= html::div('horus-evline', $who);
         }
 
-        // Raw user agent and extra headers, collapsed - useful when a client is not
-        // recognised, noise otherwise.
+        if ($net = self::network_line($event, $rc, $geo)) {
+            $out .= html::div('horus-evline', $net);
+        }
+
+        $out .= self::raw_block($event, $rc);
+
+        return $out;
+    }
+
+    /**
+     * Client, OS, device and language - each with its own icon, so the line scans
+     * without being read.
+     */
+    private static function client_line($event)
+    {
+        $parts = [];
+
+        if (!empty($event['client'])) {
+            $icon = horus_icons::for_client($event['client']);
+            $parts[] = html::span('horus-fact',
+                ($icon ? horus_icons::get($icon, 'horus-fact-icon', 13) : '')
+                . rcube::Q(trim($event['client'] . ' ' . ($event['client_ver'] ?? ''))));
+        }
+
+        if (!empty($event['os'])) {
+            $icon = horus_icons::for_os($event['os']);
+            $parts[] = html::span('horus-fact',
+                ($icon ? horus_icons::get($icon, 'horus-fact-icon', 13) : '')
+                . rcube::Q($event['os']));
+        }
+
+        if (!empty($event['device'])) {
+            $icon = horus_icons::for_device($event['device']);
+            $parts[] = html::span('horus-fact',
+                ($icon ? horus_icons::get($icon, 'horus-fact-icon', 13) : '')
+                . rcube::Q($event['device']));
+        }
+
+        if (!empty($event['language'])) {
+            $lang = trim(strtok($event['language'], ','));
+            $cc   = horus_flags::country_from_language($event['language']);
+
+            $parts[] = html::span('horus-fact',
+                ($cc ? horus_flags::get($cc, 15) : '') . rcube::Q($lang));
+        }
+
+        return implode('', $parts);
+    }
+
+    /**
+     * Address, reverse DNS, location and network owner.
+     */
+    private static function network_line($event, $rc, array $geo)
+    {
+        if (empty($event['ip'])) {
+            return '';
+        }
+
+        $parts = [html::span('horus-fact horus-ip', rcube::Q($event['ip'])
+            . (!empty($event['ip_version']) ? ' (v' . intval($event['ip_version']) . ')' : ''))];
+
+        $info = $geo[$event['ip']] ?? null;
+
+        // Where the address is, when that is known.
+        if (!empty($info['country_code']) || !empty($info['city'])) {
+            $place = array_filter([$info['city'] ?? null, $info['region'] ?? null, $info['country'] ?? null]);
+
+            $parts[] = html::span('horus-fact',
+                (!empty($info['country_code']) ? horus_flags::get($info['country_code'], 15) : '')
+                . rcube::Q(implode(', ', array_unique($place))));
+        }
+
+        if (!empty($info['org'])) {
+            $parts[] = html::span('horus-fact horus-muted', rcube::Q($info['org']));
+        }
+
+        if (!empty($event['hostname'])) {
+            $parts[] = html::span('horus-fact horus-host', rcube::Q($event['hostname']));
+        }
+
+        if (!empty($event['forwarded']) && $event['forwarded'] !== $event['ip']) {
+            $parts[] = html::span('horus-fact horus-muted', 'via ' . rcube::Q($event['forwarded']));
+        }
+
+        if (!empty($event['referer'])) {
+            $parts[] = html::span('horus-fact horus-muted',
+                'ref ' . rcube::Q(mb_strimwidth($event['referer'], 0, 46, '...')));
+        }
+
+        // The override is only offered where it would change something.
+        if ($event['status'] !== horus_store::STATUS_BOT && $event['status'] !== horus_store::STATUS_SELF) {
+            $parts[] = html::tag('button', [
+                'type'    => 'button',
+                'class'   => 'horus-markbot',
+                'title'   => $rc->gettext('horus.markbottitle'),
+                'onclick' => "rcmail.command('plugin.horus.markbot', '" . rcube::JQ($event['ip']) . "')",
+            ], horus_icons::get('bot', '', 11) . ' ' . rcube::Q($rc->gettext('horus.markbot')));
+        }
+
+        return implode('', $parts);
+    }
+
+    /**
+     * Raw user agent and the extra headers, collapsed.
+     */
+    private static function raw_block($event, $rc)
+    {
         $raw = [];
 
         if (!empty($event['user_agent'])) {
             $raw[] = rcube::Q($event['user_agent']);
         }
+
         if (!empty($event['headers'])) {
             $decoded = json_decode($event['headers'], true);
 
@@ -844,14 +907,133 @@ class horus_dashboard
             }
         }
 
-        if ($raw) {
-            $out .= html::tag('details', 'horus-raw',
-                html::tag('summary', null, rcube::Q($rc->gettext('horus.rawrequest')))
-                . html::div('horus-rawbody', implode('<br>', $raw))
-            );
+        if (!$raw) {
+            return '';
+        }
+
+        return html::tag('details', 'horus-raw',
+            html::tag('summary', null, rcube::Q($rc->gettext('horus.rawrequest')))
+            . html::div('horus-rawbody', implode('<br>', $raw))
+        );
+    }
+
+    /**
+     * A roll-up of every distinct client and address seen for a message.
+     *
+     * The timeline answers "what happened, in order"; this answers "who was
+     * involved, in total", which is the question you actually ask when a message
+     * has been opened a dozen times.
+     */
+    /**
+     * Locations for every address in a set of events.
+     *
+     * Cached rows are read in one query; only addresses that have never been located
+     * cost an outbound lookup, and only when geolocation is switched on.
+     */
+    public static function geo_for($events, horus_store $store)
+    {
+        $ips = [];
+
+        foreach ($events as $event) {
+            if (!empty($event['ip'])) {
+                $ips[] = $event['ip'];
+            }
+        }
+
+        if (!$ips) {
+            return [];
+        }
+
+        $geo    = new horus_geo($store);
+        $cached = $store->get_ipinfo_many($ips);
+        $out    = [];
+
+        foreach (array_unique($ips) as $ip) {
+            $row = $cached[$ip] ?? null;
+
+            // Already located, or located recently enough: use it as is.
+            if ($row && !empty($row['geo_at'])) {
+                $out[$ip] = $row;
+                continue;
+            }
+
+            if ($found = $geo->locate($ip)) {
+                $out[$ip] = $found;
+            }
         }
 
         return $out;
+    }
+
+    public static function render_client_table($events, $rc, array $geo = [])
+    {
+        $rows = [];
+
+        foreach ($events as $event) {
+            if (empty($event['ip']) && empty($event['user_agent'])) {
+                continue;
+            }
+
+            $key = ($event['ip'] ?? '') . '|' . ($event['client'] ?? '') . '|' . ($event['os'] ?? '');
+
+            if (!isset($rows[$key])) {
+                $rows[$key] = ['event' => $event, 'n' => 0, 'first' => null, 'last' => null];
+            }
+
+            $rows[$key]['n']++;
+            $rows[$key]['first'] = $rows[$key]['first'] ?? $event['created_at'];
+            $rows[$key]['last']  = $event['created_at'];
+        }
+
+        if (count($rows) < 1) {
+            return '';
+        }
+
+        $body = '';
+
+        foreach ($rows as $row) {
+            $e    = $row['event'];
+            $info = $geo[$e['ip']] ?? null;
+
+            $place = '&mdash;';
+            if (!empty($info['country_code']) || !empty($info['city'])) {
+                $bits  = array_filter([$info['city'] ?? null, $info['country'] ?? null]);
+                $place = (!empty($info['country_code']) ? horus_flags::get($info['country_code'], 15) . ' ' : '')
+                    . rcube::Q(implode(', ', $bits));
+            }
+
+            $client = '&mdash;';
+            if (!empty($e['client']) || !empty($e['os'])) {
+                $ci = horus_icons::for_client($e['client'] ?? '');
+                $oi = horus_icons::for_os($e['os'] ?? '');
+                $client = ($ci ? horus_icons::get($ci, 'horus-fact-icon', 13) : '')
+                    . rcube::Q(trim(($e['client'] ?? '') . ' ' . ($e['client_ver'] ?? '')))
+                    . ' ' . ($oi ? horus_icons::get($oi, 'horus-fact-icon', 13) : '')
+                    . rcube::Q($e['os'] ?? '');
+            }
+
+            $body .= html::tag('tr', null,
+                html::tag('td', null, $client)
+                . html::tag('td', 'horus-ip', rcube::Q($e['ip'] ?? ''))
+                . html::tag('td', null, $place)
+                . html::tag('td', 'horus-host', rcube::Q($e['hostname'] ?? '') ?: '&mdash;')
+                . html::tag('td', null, intval($row['n']))
+            );
+        }
+
+        $head = html::tag('tr', null,
+            html::tag('th', null, rcube::Q($rc->gettext('horus.colclient')))
+            . html::tag('th', null, rcube::Q($rc->gettext('horus.colip')))
+            . html::tag('th', null, rcube::Q($rc->gettext('horus.collocation')))
+            . html::tag('th', null, rcube::Q($rc->gettext('horus.colhost')))
+            . html::tag('th', null, rcube::Q($rc->gettext('horus.colhits')))
+        );
+
+        return html::div('horus-panel-section',
+            html::div('horus-drawer-title', rcube::Q($rc->gettext('horus.clientsummary')))
+            . html::tag('table', 'horus-table horus-clients',
+                html::tag('thead', null, $head) . html::tag('tbody', null, $body))
+        );
     }
 
     private function when($value)

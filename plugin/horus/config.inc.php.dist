@@ -96,3 +96,19 @@ $config['horus_reverse_dns'] = true;
 // their own copy with its own tracking id, which is the only way to tell them apart -
 // at the cost of one SMTP transaction per recipient.
 $config['horus_split_recipients'] = false;
+
+// ------------------------------------------------------------- geolocation
+
+// Resolve the city/country of an address that opened a message.
+//
+// THIS IS THE ONLY PART OF HORUS THAT CONTACTS A THIRD PARTY. When enabled, the
+// address is sent to ip-api.com to be located. It never runs on the tracking
+// endpoints - the pixel just records the address and returns - so lookups happen
+// only when you open a report, and each address is looked up once and then cached.
+// Private and reserved ranges are never sent anywhere.
+//
+// Leave this false if you would rather no recipient address ever leaves the server.
+$config['horus_geo_enabled'] = false;
+
+// Timeout for that lookup, in seconds.
+$config['horus_geo_timeout'] = 4;

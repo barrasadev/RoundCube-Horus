@@ -794,20 +794,27 @@ a.horus-headerlink {
    so only our own dot shows. */
 a.horus-headerlink:before { content: none !important; }
 
-.horus-dot-state {
-	display: inline-block;
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: #8b949e;
+/* The Eye of Horus carries the state colour here, and only here. */
+.horus-eye-state {
+	display: inline-flex;
+	align-items: center;
+	color: #8b949e;
 	flex: none;
 }
 
-.horus-dot-state.horus-state-opened     { background: #0ca30c; }
-.horus-dot-state.horus-state-clicked    { background: #2a78d6; }
-.horus-dot-state.horus-state-downloaded { background: #7048cc; }
-.horus-dot-state.horus-state-maybe      { background: #fab219; }
-.horus-dot-state.horus-state-notopened  { background: #ec835a; }
+.horus-eye-state svg { display: block; }
+
+.horus-eye-state.horus-state-opened     { color: #0ca30c; }
+.horus-eye-state.horus-state-clicked    { color: #2a78d6; }
+.horus-eye-state.horus-state-downloaded { color: #7048cc; }
+.horus-eye-state.horus-state-maybe      { color: #d98c00; }
+.horus-eye-state.horus-state-notopened  { color: #d9713f; }
+
+html.dark-mode .horus-eye-state.horus-state-maybe      { color: #fab219; }
+html.dark-mode .horus-eye-state.horus-state-notopened  { color: #ec835a; }
+html.dark-mode .horus-eye-state.horus-state-opened     { color: #35c035; }
+html.dark-mode .horus-eye-state.horus-state-clicked    { color: #6aa6ee; }
+html.dark-mode .horus-eye-state.horus-state-downloaded { color: #a98ae8; }
 
 /* -------------------------------------------------------- report dialog */
 
@@ -817,10 +824,36 @@ a.horus-headerlink:before { content: none !important; }
  * that body a flex container, which would otherwise lay the header block and the
  * timeline out as side-by-side columns.
  */
+/*
+ * Roundcube's dialog helper decorates the content with its own `ui alert box`
+ * classes, which impose a light background and text colour of their own. In dark
+ * mode that produced dark text on a dark panel, so the surface is asserted here.
+ */
 .ui-dialog-content .horus-msgdata {
 	display: block !important;
 	width: 100%;
+	background: transparent !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	padding: 0 !important;
+	color: var(--horus-text) !important;
 }
+
+.ui-dialog-content .horus-msgdata a { color: var(--horus-s1); }
+
+/* The dialog chrome itself follows the theme. */
+html.dark-mode .ui-dialog .ui-dialog-content,
+html.dark-mode .ui-dialog .ui-dialog-titlebar,
+html.dark-mode .ui-dialog .ui-dialog-buttonpane {
+	background: #1a1a19;
+	color: #ffffff;
+	border-color: #383835;
+}
+
+html.dark-mode .ui-dialog .ui-dialog-title { color: #ffffff; }
+
+/* The eye at the top of the report is neutral - the state colour is outside. */
+.horus-dialog-icon { color: var(--horus-s1); }
 
 .horus-msgdata {
 	--horus-surface: #ffffff;
@@ -902,3 +935,75 @@ html.dark-mode .horus-msgdata {
 	border-color: rgba(208,59,59,.4);
 	color: var(--horus-critical);
 }
+
+
+/* ------------------------------------------------ facts, flags and clients */
+
+/*
+ * One fact per chip: client, OS, device, language, address, location. Chips keep
+ * the icon glued to its own value, which a plain separated list did not - at a
+ * glance it was ambiguous which icon belonged to which word.
+ */
+/*
+ * Spacing lives on the CONTAINER, not as a margin on each chip: Bootstrap resets
+ * margins on elements inside a dialog, which silently collapsed the gaps and ran
+ * "Budapest, Hungary" straight into the network operator's name.
+ */
+.horus-evline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 3px 12px;
+}
+
+.horus-fact {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+/* A long network-operator name truncates rather than shoving the rest off. */
+.horus-fact.horus-muted {
+	display: inline-block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 20em;
+}
+
+.horus-fact-icon {
+	color: var(--horus-muted);
+	flex: none;
+}
+
+.horus-flag {
+	border-radius: 2px;
+	flex: none;
+	vertical-align: -.15em;
+}
+
+.horus-flag-chip {
+	display: inline-block;
+	padding: 0 4px;
+	border: 1px solid var(--horus-border);
+	border-radius: 3px;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: .04em;
+	color: var(--horus-muted);
+	line-height: 1.5;
+}
+
+.horus-times {
+	color: var(--horus-muted);
+	font-weight: 400;
+}
+
+.horus-clients {
+	font-size: 12px;
+	margin-top: 4px;
+}
+
+.horus-clients td { vertical-align: middle; }
+.horus-clients .horus-fact-icon { margin-right: 3px; }

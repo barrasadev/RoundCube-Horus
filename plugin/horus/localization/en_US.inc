@@ -162,3 +162,11 @@ $labels['splitrecipientshint'] = 'Sends an individual copy to each recipient so 
 $labels['perrecipient']        = 'Per recipient';
 $labels['prefssplit']          = 'Track each recipient separately by default';
 $labels['prefssplithint']      = 'Only applies when a message has more than one recipient. It sends one copy per recipient instead of a single message.';
+
+// Client / network summary table
+$labels['clientsummary'] = 'Clients and addresses';
+$labels['colclient']     = 'Client';
+$labels['colip']         = 'Address';
+$labels['collocation']   = 'Location';
+$labels['colhost']       = 'Reverse DNS';
+$labels['colhits']       = 'Hits';

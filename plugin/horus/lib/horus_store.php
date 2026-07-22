@@ -488,6 +488,61 @@ class horus_store
         return $this->db->fetch_assoc($sql) ?: null;
     }
 
+    /**
+     * Store (or refresh) the cached location for an address.
+     *
+     * Called with an empty array for a negative result, which is recorded just the
+     * same so the provider is not asked about that address again on every page view.
+     */
+    public function put_geo($ip, array $geo)
+    {
+        $table = $this->t('horus_ipinfo');
+        $now   = self::now();
+
+        $cols = [$geo['country'] ?? null, $geo['country_code'] ?? null,
+            $geo['region'] ?? null, $geo['city'] ?? null, $geo['org'] ?? null, $now, $ip];
+
+        $this->db->query(
+            "UPDATE $table SET `country` = ?, `country_code` = ?, `region` = ?, `city` = ?,"
+            . ' `org` = ?, `geo_at` = ? WHERE `ip` = ?',
+            ...$cols
+        );
+
+        if (!$this->db->affected_rows()) {
+            $this->db->query(
+                "INSERT INTO $table (`ip`, `resolved_at`, `country`, `country_code`, `region`,"
+                . ' `city`, `org`, `geo_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                $ip, $now, $geo['country'] ?? null, $geo['country_code'] ?? null,
+                $geo['region'] ?? null, $geo['city'] ?? null, $geo['org'] ?? null, $now
+            );
+        }
+    }
+
+    /**
+     * Everything cached about a set of addresses, keyed by address.
+     */
+    public function get_ipinfo_many(array $ips)
+    {
+        $ips = array_values(array_unique(array_filter($ips)));
+
+        if (!$ips) {
+            return [];
+        }
+
+        $sql = $this->db->query(
+            'SELECT * FROM ' . $this->t('horus_ipinfo')
+            . ' WHERE `ip` IN (' . rtrim(str_repeat('?,', count($ips)), ',') . ')',
+            ...$ips
+        );
+
+        $out = [];
+        foreach ($this->fetch_all($sql) as $row) {
+            $out[$row['ip']] = $row;
+        }
+
+        return $out;
+    }
+
     public function put_ipinfo($ip, $hostname)
     {
         $table = $this->t('horus_ipinfo');

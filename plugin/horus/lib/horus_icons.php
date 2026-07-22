@@ -45,7 +45,81 @@ class horus_icons
 
         // Circle with a slash - tracking was off for this message.
         'off'         => '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+
+        /*
+         * The Eye of Horus - the plugin's namesake, and what marks it in the message
+         * header row. Drawn as the wedjat rather than a plain eye: the brow, the
+         * almond, the pupil, and the two markings below (the descending teardrop and
+         * the curling tail) that make the symbol recognisable at 16px.
+         */
+        'horus'       => '<path d="M3.5 6.2c2-1.6 4.4-2.4 6.9-2.4 3.6 0 6.6 1.9 8.6 4.6"/>'
+            . '<path d="M2.5 12.6c2.2-3 5.1-4.6 8.2-4.6s6 1.6 8.2 4.6c-2.2 3-5.1 4.6-8.2 4.6s-6-1.6-8.2-4.6z"/>'
+            . '<circle cx="10.7" cy="12.6" r="2.1"/>'
+            . '<path d="M8.6 16.9L7.2 21"/>'
+            . '<path d="M13.4 16.4c1.6 1.4 3.4 2.1 5.4 2.1-1.1 1.4-2.6 2.1-4.4 2.1-1 0-1.8-.4-2.4-1.1"/>',
+
+        // Operating systems.
+        'os-linux'    => '<path d="M9 3.5c0-1 .8-1.7 1.8-1.7h2.4c1 0 1.8.7 1.8 1.7v3.2c0 1.6 3.1 4 3.1 8.1 0 3.3-2.5 5.4-6.1 5.4S6 18.1 6 14.8c0-4.1 3-6.5 3-8.1z"/><circle cx="10.4" cy="6.6" r=".7"/><circle cx="13.6" cy="6.6" r=".7"/><path d="M10.9 9.6c.7.6 1.5.6 2.2 0"/>',
+        'os-windows'  => '<path d="M3.5 6.3l7.2-1v6.2H3.5z"/><path d="M12.3 5.1l8.2-1.1v7.5h-8.2z"/><path d="M3.5 13.1h7.2v6.2l-7.2-1z"/><path d="M12.3 13.1h8.2v7.5l-8.2-1.1z"/>',
+        'os-apple'    => '<path d="M16.2 12.6c0-2.4 2-3.5 2.1-3.6-1.1-1.7-2.9-1.9-3.6-1.9-1.5-.2-3 .9-3.8.9s-2-.9-3.2-.9c-1.7 0-3.2 1-4 2.5-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.6-.9.9-1.7 1-1.8-.1 0-2.2-.9-2.2-3z"/><path d="M14.3 4.9c.7-.8 1.1-1.9 1-3-1 0-2.2.7-2.9 1.5-.6.7-1.1 1.8-1 2.9 1.1.1 2.2-.6 2.9-1.4z"/>',
+        'os-android'  => '<path d="M5 9.5h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M5 9.5a7 7 0 0 1 14 0"/><path d="M7.5 6.2L6.2 4.1"/><path d="M16.5 6.2l1.3-2.1"/><circle cx="9.3" cy="7.3" r=".6"/><circle cx="14.7" cy="7.3" r=".6"/><path d="M9 18.5v2.2"/><path d="M15 18.5v2.2"/>',
+        'os-generic'  => '<rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M8 20h8"/><path d="M12 16.5V20"/>',
+
+        // Browsers and mail clients.
+        'app-chrome'    => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M9.1 13.9L4.3 7.1"/><path d="M14.8 10.2h7.9"/><path d="M12.6 15.5l-3.4 6.3"/>',
+        'app-firefox'   => '<circle cx="12" cy="12.6" r="8.4"/><path d="M12 4.2c-3 0-4.9 2-4.9 4.6 0 2.9 2.3 4 4.4 4 1.7 0 2.7.8 2.7 2.1 0 1.5-1.4 2.6-3.3 2.6"/><path d="M16.6 5.6c1.3.6 2.4 1.6 3.1 2.9"/>',
+        'app-edge'      => '<circle cx="12" cy="12" r="9"/><path d="M3.6 13.6c3.6.9 9.4 1.3 16.7-.7"/><path d="M8.3 20.4c-1.2-2.4-1.5-6.7.6-10.2 1.6-2.7 4.4-3.6 6.6-2.6"/>',
+        'app-safari'    => '<circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-1.9 5.3-5.3 1.9 1.9-5.3z"/>',
+        'app-mail'      => '<path d="M3 7l9 6 9-6"/><path d="M3 7h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+        'app-bot'       => '<rect x="4" y="8" width="16" height="11" rx="2.4"/><path d="M12 4.5V8"/><circle cx="12" cy="3.4" r="1.2"/><circle cx="9" cy="13" r="1.1"/><circle cx="15" cy="13" r="1.1"/>',
+
+        // Device classes.
+        'dev-desktop' => '<rect x="2.5" y="4" width="19" height="12.5" rx="1.6"/><path d="M8 20.5h8"/><path d="M12 16.5v4"/>',
+        'dev-mobile'  => '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.6h2"/>',
+        'dev-tablet'  => '<rect x="4.5" y="2.5" width="15" height="19" rx="2"/><path d="M11 18.6h2"/>',
     ];
+
+    /** Which icon represents a parsed OS string. */
+    public static function for_os($os)
+    {
+        $os = strtolower((string) $os);
+
+        if (strpos($os, 'linux') !== false || strpos($os, 'freebsd') !== false) return 'os-linux';
+        if (strpos($os, 'windows') !== false)                                   return 'os-windows';
+        if (strpos($os, 'ios') !== false || strpos($os, 'macos') !== false)     return 'os-apple';
+        if (strpos($os, 'android') !== false)                                   return 'os-android';
+
+        return $os !== '' ? 'os-generic' : null;
+    }
+
+    /** Which icon represents a parsed client string. */
+    public static function for_client($client)
+    {
+        $c = strtolower((string) $client);
+
+        if (strpos($c, 'chrome') !== false)  return 'app-chrome';
+        if (strpos($c, 'firefox') !== false) return 'app-firefox';
+        if (strpos($c, 'edge') !== false)    return 'app-edge';
+        if (strpos($c, 'safari') !== false)  return 'app-safari';
+        if (strpos($c, 'proxy') !== false || strpos($c, 'curl') !== false
+            || strpos($c, 'wget') !== false) return 'app-bot';
+        if ($c !== '')                       return 'app-mail';
+
+        return null;
+    }
+
+    /** Which icon represents a device class. */
+    public static function for_device($device)
+    {
+        switch ((string) $device) {
+            case 'mobile':  return 'dev-mobile';
+            case 'tablet':  return 'dev-tablet';
+            case 'bot':     return 'app-bot';
+            case 'desktop': return 'dev-desktop';
+        }
+
+        return null;
+    }
 
     /**
      * Render an icon.

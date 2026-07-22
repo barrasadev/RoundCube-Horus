@@ -214,7 +214,9 @@ class horus_msgview
 
         return html::div(['id' => 'horus-msgdata', 'class' => 'horus-msgdata', 'style' => 'display:none'],
             html::div('horus-dialog-head',
-                horus_icons::get($icon, 'horus-dialog-icon', 18)
+                // Always the eye, and always neutral: the state colour lives on the
+                // header-links entry outside, not in here.
+                horus_icons::get('horus', 'horus-dialog-icon', 20)
                 . html::span('horus-dialog-state horus-state-' . $state, $summary))
             . $panel
         );
@@ -241,18 +243,20 @@ class horus_msgview
         $parts = [];
         $real  = intval($record['real_open_count']);
 
+        // Counts in parentheses, no timestamps: every date is already in the
+        // timeline directly below, and repeating them made the line unreadable.
         if ($real > 0 || !empty($record['human_confirmed'])) {
-            $parts[] = rcube::Q($this->t('opened')) . ' &middot; ' . $this->count_label(max($real, 1));
+            $parts[] = rcube::Q($this->t('opened')) . self::times(max($real, 1));
         }
         else if ($record['open_count'] > 0) {
-            $parts[] = rcube::Q($this->t('maybeopened'));
+            $parts[] = rcube::Q($this->t('maybeopened')) . self::times($record['open_count']);
         }
         else {
             $parts[] = rcube::Q($this->t('notopenedyet'));
         }
 
         if ($record['click_count'] > 0) {
-            $parts[] = rcube::Q($this->t('clicked'));
+            $parts[] = rcube::Q($this->t('clicked')) . self::times($record['click_count']);
         }
 
         if ($docs) {
@@ -300,33 +304,27 @@ class horus_msgview
         // A confirmed human interaction settles the question even when every pixel
         // fetch looked automated: someone clicked, so the message was opened.
         if ($real > 0 || !empty($record['human_confirmed'])) {
-            $badges[] = $this->badge('ok', 'opened', $this->t('opened')
-                . ' &middot; ' . $this->count_label(max($real, 1))
-                . ' &middot; ' . $this->when($record['first_real_open_at'] ?: $record['first_open_at']));
+            $badges[] = $this->badge('ok', 'opened', $this->t('opened') . self::times(max($real, 1)));
         }
         else if ($all > 0) {
-            $badges[] = $this->badge('maybe', 'maybe', $this->t('maybeopened')
-                . ' &middot; ' . $this->count_label($all)
-                . ' &middot; ' . $this->when($record['first_open_at']));
+            $badges[] = $this->badge('maybe', 'maybe', $this->t('maybeopened') . self::times($all));
         }
         else {
             $badges[] = $this->badge('muted', 'sent', $this->t('noopens'));
         }
 
         if ($clicks > 0) {
-            $badges[] = $this->badge('link', 'clicked', $this->t('clicked')
-                . ' &middot; ' . $this->count_label($clicks)
-                . ' &middot; ' . $this->when($record['first_click_at']));
+            $badges[] = $this->badge('link', 'clicked', $this->t('clicked') . self::times($clicks));
         }
 
         foreach ($docs as $doc) {
             $state = [];
 
             if ($doc['download_count'] > 0) {
-                $state[] = $this->t('downloaded') . ' ' . $this->when($doc['first_download_at']);
+                $state[] = $this->t('downloaded');
             }
             else if ($doc['view_count'] > 0) {
-                $state[] = $this->t('viewed') . ' ' . $this->when($doc['first_view_at']);
+                $state[] = $this->t('viewed');
             }
             else {
                 $state[] = $this->t('notopened');
@@ -359,20 +357,21 @@ class horus_msgview
             return '';
         }
 
+        require_once __DIR__ . '/horus_dashboard.php';
+
+        $geo  = horus_dashboard::geo_for($events, $this->store);
         $rows = '';
 
         foreach ($events as $event) {
-            $label = $this->event_label($event);
-            $note  = $this->event_note($event);
-
             $rows .= html::tag('tr', null,
                 html::tag('td', 'horus-t-when', rcube::Q($this->when($event['created_at'])))
-                . html::tag('td', 'horus-t-what', $label)
-                . html::tag('td', 'horus-t-note', $note)
+                . html::tag('td', 'horus-t-what', $this->event_label($event))
+                . html::tag('td', 'horus-t-note', $this->event_note($event, $geo))
             );
         }
 
-        return html::tag('table', 'horus-timeline', html::tag('tbody', null, $rows));
+        return html::tag('table', 'horus-timeline', html::tag('tbody', null, $rows))
+            . horus_dashboard::render_client_table($events, $this->rc, $geo);
     }
 
     private function event_label($event)
@@ -399,11 +398,17 @@ class horus_msgview
         return rcube::Q($event['type']);
     }
 
-    private function event_note($event)
+    private function event_note($event, array $geo = [])
     {
         require_once __DIR__ . '/horus_dashboard.php';
 
-        return horus_dashboard::render_event_note($event, $this->rc);
+        return horus_dashboard::render_event_note($event, $this->rc, $geo);
+    }
+
+    /** "(3)", or nothing at all when it happened once. */
+    private static function times($n)
+    {
+        return $n > 1 ? ' <span class="horus-times">(' . intval($n) . ')</span>' : '';
     }
 
     private function count_label($n)

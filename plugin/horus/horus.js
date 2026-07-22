@@ -39,6 +39,16 @@ window.rcmail && rcmail.addEventListener('init', function () {
 
 /* ----------------------------------------------------- message header link */
 
+/** Eye of Horus. Keep in step with the 'horus' entry in lib/horus_icons.php. */
+var HORUS_EYE_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"'
+    + ' stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+    + ' stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    + '<path d="M3.5 6.2c2-1.6 4.4-2.4 6.9-2.4 3.6 0 6.6 1.9 8.6 4.6"/>'
+    + '<path d="M2.5 12.6c2.2-3 5.1-4.6 8.2-4.6s6 1.6 8.2 4.6c-2.2 3-5.1 4.6-8.2 4.6s-6-1.6-8.2-4.6z"/>'
+    + '<circle cx="10.7" cy="12.6" r="2.1"/>'
+    + '<path d="M8.6 16.9L7.2 21"/>'
+    + '<path d="M13.4 16.4c1.6 1.4 3.4 2.1 5.4 2.1-1.1 1.4-2.6 2.1-4.4 2.1-1 0-1.8-.4-2.4-1.1"/></svg>';
+
 /**
  * Put "Horus" in the skin's header-links row, next to Details / Headers / Plain
  * text, and open the full report in a dialog.
@@ -67,12 +77,14 @@ function horus_header_link() {
     a.title = rcmail.env.horus_summary || '';
     a.onclick = function () { horus_open_dialog(); return false; };
 
-    // A real element rather than a ::before: the skin already styles ::before on
-    // these links with its icon font, and overriding that fights the skin's own
-    // sizing. An element we create is ours to size.
-    var dot = document.createElement('span');
-    dot.className = 'horus-dot-state horus-state-' + (rcmail.env.horus_state || 'untracked');
-    a.appendChild(dot);
+    // The Eye of Horus, matching the 'horus' entry in lib/horus_icons.php. Its
+    // colour carries the state here, the same way the other links in this row
+    // carry their own icon. Inside the dialog the eye is neutral; only this one
+    // outside is coloured.
+    var eye = document.createElement('span');
+    eye.className = 'horus-eye-state horus-state-' + (rcmail.env.horus_state || 'untracked');
+    eye.innerHTML = HORUS_EYE_ICON;
+    a.appendChild(eye);
     a.appendChild(document.createTextNode(rcmail.get_label('horus.horusdetails')));
 
     links.appendChild(a);

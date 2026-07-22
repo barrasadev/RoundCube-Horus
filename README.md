@@ -39,7 +39,12 @@ the reasoning behind each verdict is visible in the UI.
 **Intelligence**
 - Each event records the address, its **reverse DNS name resolved at write time**,
   the parsed client/OS/device, the language, the referrer, the proxy chain and the
-  raw headers.
+  raw headers - each rendered with its own icon, and the language with its flag.
+- Optional **geolocation** (city, region, country, network operator). It is the one
+  feature that contacts a third party, so it is **off by default**, never runs on the
+  tracking endpoints, caches per address, and never sends private ranges anywhere.
+- A **clients and addresses** roll-up under each timeline: who was involved in total,
+  rather than what happened in order.
 - The PTR name also feeds the classifier — a host under `proofpoint.com` is a gateway
   whatever its user agent claims.
 
@@ -206,6 +211,9 @@ These are real, and no email tracker escapes them. Better to know up front.
   gets your original links and their clicks are invisible. Rewriting them would turn
   readable URLs into unreadable tracking strings; tracked-attachment links *are*
   appended so those files remain reachable.
+- **Geolocation is approximate and optional.** City-level accuracy is decent for
+  fixed lines and poor for mobile networks. With `horus_geo_enabled` off (the
+  default) no address ever leaves the server.
 - **Gmail hides the reader's IP.** Opens are real, but the address, reverse DNS and
   geography all belong to Google, not your recipient.
 - **Apple MPP is a moving target.** It defeats open tracking by design. Horus detects

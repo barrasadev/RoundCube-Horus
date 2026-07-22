@@ -50,6 +50,8 @@ class horus extends rcube_plugin
         require_once __DIR__ . '/lib/horus_settings.php';
         require_once __DIR__ . '/lib/horus_bots.php';
         require_once __DIR__ . '/lib/horus_icons.php';
+        require_once __DIR__ . '/lib/horus_flags.php';
+        require_once __DIR__ . '/lib/horus_geo.php';
         require_once __DIR__ . '/lib/horus_intel.php';
         require_once __DIR__ . '/lib/horus_selfview.php';
         require_once __DIR__ . '/lib/horus_classifier.php';

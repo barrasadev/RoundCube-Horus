@@ -71,6 +71,8 @@ class horus_settings
             'horus_fetch_timeout'      => intval($rcmail->config->get('horus_fetch_timeout', 8)),
             'horus_max_ranges'         => intval($rcmail->config->get('horus_max_ranges', 20000)),
             'horus_reverse_dns'        => (bool) $rcmail->config->get('horus_reverse_dns', true),
+            'horus_geo_enabled'        => (bool) $rcmail->config->get('horus_geo_enabled', false),
+            'horus_geo_timeout'        => intval($rcmail->config->get('horus_geo_timeout', 4)),
         ];
     }
 
