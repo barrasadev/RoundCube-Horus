@@ -86,21 +86,17 @@ class horus_msgview
 
         require_once __DIR__ . '/horus_list.php';
 
-        $docs  = $this->store->documents_for_message($record['message_id']);
-        $state = horus_list::state_of($record + ['doc_downloaded' => $this->downloaded_count($docs)]);
+        $docs = $this->store->documents_for_message($record['message_id']);
 
-        $icons = [
-            horus_list::STATE_NOTOPENED  => 'sent',
-            horus_list::STATE_MAYBE      => 'maybe',
-            horus_list::STATE_OPENED     => 'opened',
-            horus_list::STATE_CLICKED    => 'clicked',
-            horus_list::STATE_DOWNLOADED => 'downloaded',
-        ];
+        // The eye reports whether the message was OPENED, and nothing else. A click
+        // or a download does not change its colour: they happen after an open, so
+        // green stays green.
+        $state = horus_list::state_of($record);
 
         $summary = $this->summary_line($record, $docs);
         $panel   = $this->panel($record, $docs);
 
-        return $this->collapsed($icons[$state] ?? 'sent', $state, $summary, $panel);
+        return $this->collapsed(self::open_icon($state), $state, $summary, $panel);
     }
 
     /**
@@ -114,13 +110,13 @@ class horus_msgview
     {
         require_once __DIR__ . '/horus_list.php';
 
+        // Only the open axis is ranked: the headline is how many recipients opened
+        // it, and the eye reports opens. Clicks and downloads are separate badges.
         $rank = [
-            horus_list::STATE_UNTRACKED  => 0,
-            horus_list::STATE_NOTOPENED  => 1,
-            horus_list::STATE_MAYBE      => 2,
-            horus_list::STATE_OPENED     => 3,
-            horus_list::STATE_CLICKED    => 4,
-            horus_list::STATE_DOWNLOADED => 5,
+            horus_list::STATE_UNTRACKED => 0,
+            horus_list::STATE_NOTOPENED => 1,
+            horus_list::STATE_MAYBE     => 2,
+            horus_list::STATE_OPENED    => 3,
         ];
 
         $total  = count($records);
@@ -131,7 +127,7 @@ class horus_msgview
 
         foreach ($records as $record) {
             $docs  = $this->store->documents_for_message($record['message_id']);
-            $state = horus_list::state_of($record + ['doc_downloaded' => $this->downloaded_count($docs)]);
+            $state = horus_list::state_of($record);
 
             if (($rank[$state] ?? 0) >= $rank[horus_list::STATE_OPENED]) {
                 $opened++;
@@ -143,7 +139,8 @@ class horus_msgview
 
             $rows .= html::tag('tr', null,
                 html::tag('td', 'horus-addr', rcube::Q($record['to_addr']))
-                . html::tag('td', null, $this->state_tag($state))
+                . html::tag('td', null, $this->state_tags(
+                    $record + ['doc_downloaded' => $this->downloaded_count($docs)]))
                 . html::tag('td', 'horus-when', rcube::Q($this->when(
                     $record['first_real_open_at'] ?: $record['first_open_at'])))
             );
@@ -160,22 +157,39 @@ class horus_msgview
             . html::tag('table', 'horus-table', html::tag('tbody', null, $rows))
         ) . $detail;
 
-        $icons = [
-            horus_list::STATE_NOTOPENED  => 'sent',
-            horus_list::STATE_MAYBE      => 'maybe',
-            horus_list::STATE_OPENED     => 'opened',
-            horus_list::STATE_CLICKED    => 'clicked',
-            horus_list::STATE_DOWNLOADED => 'downloaded',
-        ];
-
         $summary = rcube::Q(sprintf('%d/%d %s', $opened, $total, $this->t('opened')));
 
-        return $this->collapsed($icons[$best] ?? 'sent', $best, $summary,
+        return $this->collapsed(self::open_icon($best), $best, $summary,
             html::div('horus-panel', $panel));
     }
 
+    /** Icon for an open state. */
+    private static function open_icon($state)
+    {
+        switch ($state) {
+            case horus_list::STATE_OPENED: return 'opened';
+            case horus_list::STATE_MAYBE:  return 'maybe';
+        }
+
+        return 'sent';
+    }
+
     /**
-     * One recipient's state as a coloured tag.
+     * One recipient's states as coloured tags - all of them, not just the strongest.
+     */
+    private function state_tags(array $record)
+    {
+        $out = '';
+
+        foreach (horus_list::states_of($record) as $state) {
+            $out .= $this->state_tag($state) . ' ';
+        }
+
+        return trim($out);
+    }
+
+    /**
+     * One state as a coloured tag.
      */
     private function state_tag($state)
     {

@@ -695,6 +695,9 @@ button.horus-legend-item.horus-legend-off {
 
 .horus-pill svg { flex: none; }
 
+/* Follow-up states are icon-only, so a row never runs out of room. */
+.horus-pill-compact { padding: 1px 5px; }
+
 /*
  * One colour per state, strongest signal wins. Orange means "sent and nothing came
  * back", so it reads as pending rather than as an error.

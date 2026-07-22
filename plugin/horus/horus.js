@@ -160,13 +160,23 @@ function horus_decorate_row(event) {
     }
 
     var flags = rcmail.env.messages[uid].flags || {};
-    var state = flags.horus;
 
-    if (!state || !HORUS_ROW_ICONS[state]) {
+    if (!flags.horus) {
         return;
     }
 
-    // The pill belongs on the recipient line, not the subject: that is the line the
+    // Several states can be true at once - opened AND clicked AND downloaded - and
+    // each gets its own badge. They arrive comma-joined because extra_flags carries
+    // a plain value.
+    var states = String(flags.horus).split(',').filter(function (s) {
+        return HORUS_ROW_ICONS[s];
+    });
+
+    if (!states.length) {
+        return;
+    }
+
+    // The badges belong on the recipient line, not the subject: that is the line the
     // eye lands on in a Sent folder. `.fromto` holds the address list in every
     // Elastic layout; fall back to the subject only if the skin has no such element.
     var cell = row.obj.querySelector('.fromto')
@@ -179,20 +189,31 @@ function horus_decorate_row(event) {
     }
 
     var labels = rcmail.env.horus_list_labels || {};
-    var pill = document.createElement('span');
 
-    pill.className = 'horus-pill horus-pill-' + state;
-    pill.title = labels[state] || state;
-    pill.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"'
-        + ' stroke="currentColor" stroke-width="2.2" stroke-linecap="round"'
-        + ' stroke-linejoin="round" aria-hidden="true">' + HORUS_ROW_ICONS[state] + '</svg>';
+    states.forEach(function (state, i) {
+        var pill = document.createElement('span');
 
-    var text = document.createElement('span');
-    text.className = 'horus-pill-text';
-    text.textContent = labels[state] || state;
-    pill.appendChild(text);
+        pill.className = 'horus-pill horus-pill-' + state;
+        pill.title = labels[state] || state;
+        pill.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"'
+            + ' stroke="currentColor" stroke-width="2.2" stroke-linecap="round"'
+            + ' stroke-linejoin="round" aria-hidden="true">' + HORUS_ROW_ICONS[state] + '</svg>';
 
-    cell.appendChild(pill);
+        // Only the open state is spelled out. Three worded badges plus a recipient
+        // list overflow the row and get clipped, so the follow-up states ride as
+        // icon and colour alone, with the wording on hover.
+        if (i === 0) {
+            var text = document.createElement('span');
+            text.className = 'horus-pill-text';
+            text.textContent = labels[state] || state;
+            pill.appendChild(text);
+        }
+        else {
+            pill.classList.add('horus-pill-compact');
+        }
+
+        cell.appendChild(pill);
+    });
 }
 
 /* --------------------------------------------------------------- compose UI */

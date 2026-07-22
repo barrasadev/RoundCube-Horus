@@ -85,34 +85,53 @@ class horus_list
             return [];
         }
 
-        // One row per record. In per-recipient mode several records share a
-        // Message-ID, so the row shows the strongest state any recipient reached -
-        // the detail lives in the report.
+        // In per-recipient mode several records share a Message-ID. The row then
+        // shows the furthest any recipient got on the open axis, plus a click or
+        // download badge if any of them did that. The per-person breakdown lives in
+        // the report.
         $rank = [
-            self::STATE_UNTRACKED  => 0,
-            self::STATE_NOTOPENED  => 1,
-            self::STATE_MAYBE      => 2,
-            self::STATE_OPENED     => 3,
-            self::STATE_CLICKED    => 4,
-            self::STATE_DOWNLOADED => 5,
+            self::STATE_UNTRACKED => 0,
+            self::STATE_NOTOPENED => 1,
+            self::STATE_MAYBE     => 2,
+            self::STATE_OPENED    => 3,
         ];
+
+        $open  = [];
+        $extra = [];
+
+        foreach ($this->store->states_by_msgid($this->rc->user->ID, $msgids) as $row) {
+            $id = $row['msgid'];
+
+            foreach (self::states_of($row) as $i => $state) {
+                if ($i === 0) {
+                    if (!isset($open[$id]) || ($rank[$state] ?? 0) > ($rank[$open[$id]] ?? 0)) {
+                        $open[$id] = $state;
+                    }
+                }
+                else {
+                    $extra[$id][$state] = true;
+                }
+            }
+        }
 
         $out = [];
 
-        foreach ($this->store->states_by_msgid($this->rc->user->ID, $msgids) as $row) {
-            $state = self::state_of($row);
-            $seen  = $out[$row['msgid']] ?? null;
-
-            if ($seen === null || ($rank[$state] ?? 0) > ($rank[$seen] ?? 0)) {
-                $out[$row['msgid']] = $state;
-            }
+        foreach ($open as $id => $state) {
+            // Joined rather than an array: extra_flags reaches the client as a plain
+            // value, and horus.js splits it back apart.
+            $out[$id] = implode(',', array_merge([$state], array_keys($extra[$id] ?? [])));
         }
 
         return $out;
     }
 
     /**
-     * Reduce a message's counters to the single strongest thing that happened to it.
+     * Whether the message was opened - and nothing else.
+     *
+     * Deliberately independent of clicks and downloads. Those are things the
+     * recipient did *after* opening; letting them override the open state meant a
+     * message that was read and then clicked stopped reporting that it was read,
+     * which is the one fact you always want to see.
      */
     public static function state_of(array $row)
     {
@@ -120,17 +139,8 @@ class horus_list
             return self::STATE_UNTRACKED;
         }
 
-        if (!empty($row['doc_downloaded'])) {
-            return self::STATE_DOWNLOADED;
-        }
-
-        if ($row['click_count'] > 0) {
-            return self::STATE_CLICKED;
-        }
-
-        // A confirmed click or download already returned above; human_confirmed here
-        // covers the case where the only pixel hits were bots but a person still
-        // interacted, which makes this an open rather than a "possibly".
+        // human_confirmed covers the case where every pixel hit looked automated but
+        // a person still interacted - that is an open, not a "possibly".
         if ($row['real_open_count'] > 0 || !empty($row['human_confirmed'])) {
             return self::STATE_OPENED;
         }
@@ -140,6 +150,36 @@ class horus_list
         }
 
         return self::STATE_NOTOPENED;
+    }
+
+    /**
+     * Everything true about a message at once: its open state, plus whether it was
+     * clicked and whether a file was downloaded.
+     *
+     * These are separate facts and are shown as separate badges. A message that was
+     * opened, clicked and downloaded reports all three.
+     *
+     * @return array Ordered states, open state first
+     */
+    public static function states_of(array $row)
+    {
+        $open = self::state_of($row);
+
+        if ($open === self::STATE_UNTRACKED) {
+            return [self::STATE_UNTRACKED];
+        }
+
+        $out = [$open];
+
+        if (!empty($row['click_count'])) {
+            $out[] = self::STATE_CLICKED;
+        }
+
+        if (!empty($row['doc_downloaded'])) {
+            $out[] = self::STATE_DOWNLOADED;
+        }
+
+        return $out;
     }
 
     /**

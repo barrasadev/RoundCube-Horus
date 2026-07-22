@@ -645,24 +645,27 @@ class horus_dashboard
 
         $tags = [];
 
-        // real_open_count OR human_confirmed: a click proves a person was there, so a
-        // message that only ever showed bot pixel fetches still counts as opened.
-        if ($row['real_open_count'] > 0 || !empty($row['human_confirmed'])) {
-            $tags[] = html::span('horus-tag horus-tag-ok',
-                horus_icons::get('opened') . ' ' . rcube::Q($this->t('opened')));
-        }
-        else if ($row['open_count'] > 0) {
-            $tags[] = html::span('horus-tag horus-tag-unknown',
-                horus_icons::get('maybe') . ' ' . rcube::Q($this->t('maybeopened')));
-        }
-        else {
-            $tags[] = html::span('horus-tag horus-tag-off',
-                horus_icons::get('sent') . ' ' . rcube::Q($this->t('noopens')));
-        }
+        // Every state that is true, not just the strongest: a message that was read
+        // and then clicked should still report that it was read.
+        require_once __DIR__ . '/horus_list.php';
 
-        if ($row['click_count'] > 0) {
-            $tags[] = html::span('horus-tag horus-tag-link',
-                horus_icons::get('clicked') . ' ' . rcube::Q($this->t('clicked')));
+        $style = [
+            horus_list::STATE_NOTOPENED  => ['off',     'sent',       'noopens'],
+            horus_list::STATE_MAYBE      => ['unknown', 'maybe',      'maybeopened'],
+            horus_list::STATE_OPENED     => ['ok',      'opened',     'opened'],
+            horus_list::STATE_CLICKED    => ['link',    'clicked',    'clicked'],
+            horus_list::STATE_DOWNLOADED => ['ok',      'downloaded', 'downloaded'],
+        ];
+
+        foreach (horus_list::states_of($row + ['doc_downloaded' => $row['doc_downloaded'] ?? 0]) as $state) {
+            if (!isset($style[$state])) {
+                continue;
+            }
+
+            list($cls, $icon, $label) = $style[$state];
+
+            $tags[] = html::span("horus-tag horus-tag-$cls",
+                horus_icons::get($icon) . ' ' . rcube::Q($this->t($label)));
         }
 
         return implode(' ', $tags);
