@@ -19,6 +19,7 @@ window.rcmail && rcmail.addEventListener('init', function () {
     rcmail.register_command('plugin.horus.dialog', horus_open_dialog, true);
 
     if (rcmail.env.action === 'compose') {
+        horus_claim_compose_commands();
         horus_compose_init();
         horus_split_watch();
     }
@@ -37,6 +38,39 @@ window.rcmail && rcmail.addEventListener('init', function () {
 
     horus_header_link();
 });
+
+/* --------------------------------------------------------- compose commands */
+
+/**
+ * Commands the compose screen fires that must not be mistaken for leaving it.
+ *
+ * Keep in step with the rcmail.command() calls in lib/horus_compose.php - the
+ * static test asserts they match.
+ */
+var HORUS_COMPOSE_COMMANDS = ['plugin.horus.upload', 'plugin.horus.delete', 'plugin.horus.toggle'];
+
+/**
+ * Tell Roundcube our compose commands stay in compose.
+ *
+ * rcmail.command() treats any command outside env.compose_commands as navigation
+ * away from an edited draft and puts up "the message has not been sent... discard
+ * your changes?". Attaching a file would raise it, and answering "Discard" - the
+ * only answer that gets the upload to run - makes Roundcube drop the local autosave
+ * copy of the draft and stop warning for the rest of the session. Declaring the
+ * commands is what core does for its own attachment buttons.
+ */
+function horus_claim_compose_commands() {
+    if (!rcmail.env.compose_commands) {
+        rcmail.env.compose_commands = HORUS_COMPOSE_COMMANDS.slice();
+        return;
+    }
+
+    HORUS_COMPOSE_COMMANDS.forEach(function (command) {
+        if (rcmail.env.compose_commands.indexOf(command) < 0) {
+            rcmail.env.compose_commands.push(command);
+        }
+    });
+}
 
 /* ----------------------------------------------------- message header link */
 
