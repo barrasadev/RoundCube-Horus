@@ -1,14 +1,27 @@
-# Horus
+# Horus Plugin
 
 End-to-end email tracking for [Roundcube](https://roundcube.net), self-hosted and
-self-contained. The webmail itself serves the tracking pixel, the click redirects and
-the tracked attachments — no external service, no third-party account, nothing leaves
-your server.
+self-contained.
+
+## What is it?
+
+Horus Plugin is a Roundcube plugin that tells you what happened to the mail you sent:
+whether it was opened, when, from which client and network, whether the links in it
+were followed, and whether the files you sent along were downloaded.
+
+It does that entirely inside your own webmail. Roundcube itself serves the tracking
+pixel, the click redirects and the tracked attachments — there is no external service,
+no third-party account and no API key. Nothing about your messages or your recipients
+leaves your server. Installation is a directory copy and one line of config; the
+plugin creates and migrates its own database tables on first login.
 
 What sets it apart from the usual tracking plugin is that it refuses to lie to you.
-A pixel fetch is not proof that a human read your email, so every open is classified
-as **confirmed**, **possibly opened** (a bot or privacy proxy), or **unknown**, and
-the reasoning behind each verdict is visible in the UI.
+A pixel fetch is not proof that a human read your email — mail gateways, scanners and
+privacy proxies fetch images too. So every open is classified as **confirmed**,
+**possibly opened** (a bot or privacy proxy), or **unknown**, and the reasoning behind
+each verdict is visible in the UI. Your own views of your own Sent copy are detected
+and excluded. "Confirmed" and "possibly opened" are never summed into one flattering
+number.
 
 ![Horus dashboard](docs/dashboard.png)
 
@@ -75,7 +88,7 @@ the reasoning behind each verdict is visible in the UI.
 Horus is plug-and-play. Two steps:
 
 ```bash
-cp -r horus /path/to/roundcube/plugins/
+cp -r plugin/horus /path/to/roundcube/plugins/
 ```
 
 ```php
@@ -294,17 +307,28 @@ horus/
 │   ├── horus_injector.php     pixel, link rewriting, document block
 │   ├── horus_endpoints.php    the three public endpoints
 │   ├── horus_classifier.php   open classification
+│   ├── horus_selfview.php     your-own-view detection
 │   ├── horus_intel.php        reverse DNS, user-agent parsing
+│   ├── horus_geo.php          optional geolocation lookup
 │   ├── horus_bots.php         CIDR matching, Apple range mirror
 │   ├── horus_icons.php        inline SVG icon set
+│   ├── horus_flags.php        language flags
 │   ├── horus_compose.php      compose UI + upload actions
 │   ├── horus_msgview.php      Sent-folder status block
+│   ├── horus_list.php         status pills in the message list
 │   ├── horus_prefs.php        settings section
 │   └── horus_dashboard.php    the dashboard
 ├── SQL/{mysql,postgres,sqlite}/
 ├── skins/elastic/
 └── localization/
 ```
+
+## Credits
+
+Horus Plugin was written by **Barrasa** — [barrasa.dev/en](https://barrasa.dev/en).
+
+Built for [Roundcube](https://roundcube.net), and released in the same spirit: yours to
+run, read and modify on your own server.
 
 ## License
 
