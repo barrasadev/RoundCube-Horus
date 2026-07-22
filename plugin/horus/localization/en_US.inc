@@ -146,7 +146,6 @@ $labels['selfviews']          = 'Your own views';
 
 // Wording that reaches the RECIPIENT. Nothing here may hint at tracking.
 $labels['mailattachments'] = 'Attachments';
-$labels['maildownload']    = 'Download';
 $labels['notopenedyet'] = 'Not opened';
 $labels['files']        = 'files';
 

@@ -10,6 +10,9 @@
  */
 class horus_injector
 {
+    /** The glyph in front of a filename: a download arrow, saying what the link does. */
+    const DOC_ICON = '&#11015;';
+
     /** Schemes we never rewrite - they are not http fetches. */
     const SKIP_SCHEMES = ['mailto:', 'tel:', 'sms:', 'callto:', 'cid:', 'data:', 'javascript:', 'ftp:'];
 
@@ -188,37 +191,21 @@ class horus_injector
             . '\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">'
             . '<p style="margin:0 0 10px;font-weight:600;font-size:14px;color:#24292f;">' . $title . '</p>';
 
-        $action = rcube::Q($rcmail->config->get('horus_download_label')
-            ?: $rcmail->gettext('horus.maildownload'));
-
         foreach ($docs as $doc) {
             $url  = htmlspecialchars(self::doc_url($doc['uuid'], true), ENT_QUOTES, 'UTF-8');
             $name = rcube::Q($doc['filename']);
             $size = horus_storage::format_size($doc['size']);
-            $kind = self::kind_label($doc['mimetype'], $doc['filename']);
 
-            // A text badge rather than an icon: mail clients strip inline SVG, and an
-            // emoji renders differently (or not at all) across Outlook, Gmail and
-            // Apple Mail. Plain styled text is the only thing that looks the same
-            // everywhere - which is also why the arrow below is a character and the
-            // button is a one-cell table with bgcolor: Outlook ignores background and
-            // border-radius on an <a>, but honours them on a <td>.
-            // A <div>, not a <p>: a <table> is not allowed inside a paragraph, so the
-            // parser would close it early and drop the button onto its own line.
-            $html .= '<div style="margin:8px 0;font-size:14px;line-height:1.5;">'
-                . '<span style="display:inline-block;min-width:38px;padding:2px 6px;margin-right:8px;'
-                . 'background:#e7ecf1;border-radius:4px;color:#57606a;font-size:11px;font-weight:700;'
-                . 'letter-spacing:.04em;text-align:center;">' . $kind . '</span>'
+            // One link, icon and filename together, so there is nothing to hunt for:
+            // clicking either downloads the file. The icon is an emoji rather than an
+            // SVG or a styled button because every mail client of consequence strips
+            // inline SVG, and Outlook drops background and border-radius from an <a>.
+            $html .= '<p style="margin:6px 0;font-size:14px;line-height:1.5;">'
                 . '<a href="' . $url . '" style="color:#0969da;text-decoration:none;font-weight:500;">'
-                . $name . '</a>'
-                . ' <span style="color:#8b949e;font-size:12px;">(' . $size . ')</span>'
-                . '<table role="presentation" cellpadding="0" cellspacing="0" border="0"'
-                . ' style="display:inline-table;vertical-align:middle;margin-left:10px;"><tr>'
-                . '<td bgcolor="#0969da" style="border-radius:6px;padding:5px 12px;">'
-                . '<a href="' . $url . '" style="color:#ffffff;text-decoration:none;font-size:12px;'
-                . 'font-weight:600;white-space:nowrap;">&#8595;&nbsp;' . $action . '</a>'
-                . '</td></tr></table>'
-                . '</div>';
+                . self::DOC_ICON . ' ' . $name
+                . ' <span style="color:#8b949e;font-size:12px;font-weight:400;">(' . $size . ')</span>'
+                . '</a>'
+                . '</p>';
         }
 
         return $html . '</div>';
@@ -240,28 +227,6 @@ class horus_injector
         }
 
         return $out;
-    }
-
-    /**
-     * Short uppercase file-kind label for the badge (PDF, DOCX, IMG...).
-     */
-    private static function kind_label($mimetype, $filename)
-    {
-        $ext = strtoupper(pathinfo($filename, PATHINFO_EXTENSION));
-
-        if ($ext !== '' && strlen($ext) <= 4) {
-            return rcube::Q($ext);
-        }
-
-        if (strpos($mimetype, 'pdf') !== false) {
-            return 'PDF';
-        }
-
-        if (strpos($mimetype, 'image/') === 0) {
-            return 'IMG';
-        }
-
-        return 'FILE';
     }
 
     /**
