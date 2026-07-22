@@ -204,8 +204,12 @@ class horus extends rcube_plugin
 
         $wanted = $this->tracking_requested();
 
-        // Nothing to do and nothing to record: leave the message untouched.
-        if (!$wanted && !$docs) {
+        // Tracking off means tracking off. A tracked attachment is only ever reachable
+        // through a tracking link, so sending one with tracking disabled would either
+        // ship a link that reports back anyway or ship nothing the recipient can open.
+        // The files stay staged and the orphan sweep collects them; the message goes
+        // out as if they had never been added.
+        if (!$wanted) {
             return $args;
         }
 
@@ -214,7 +218,7 @@ class horus extends rcube_plugin
 
         // Per-recipient mode: one copy each, one uuid each, so an open can be
         // attributed to a person rather than just to the message.
-        if ($wanted && $this->split_requested() && count($recipients) > 1) {
+        if ($this->split_requested() && count($recipients) > 1) {
             return $this->send_per_recipient($args, $message, $headers, $recipients, $docs, $compose_id);
         }
 
@@ -225,20 +229,14 @@ class horus extends rcube_plugin
         // text/plain message has neither. Rather than silently sending an untrackable
         // message, promote it: the original text stays as the plain alternative, so a
         // plain-text reader sees exactly what they would have seen before.
-        if ($wanted && ($html === null || $html === '')) {
+        if ($html === null || $html === '') {
             $html = self::text_to_html((string) $message->getTXTBody());
         }
 
         $injected = false;
 
-        if ($wanted && $html !== null && $html !== '') {
+        if ($html !== null && $html !== '') {
             $message->setHTMLBody(horus_injector::process_html($html, $uuid, $docs));
-            $injected = true;
-        }
-        else if ($docs && $html !== null && $html !== '') {
-            // Tracking was declined but tracked attachments were staged; they still
-            // have to reach the recipient, so add the block without pixel or clicks.
-            $message->setHTMLBody(horus_injector::documents_block($docs) . $html);
             $injected = true;
         }
 
@@ -259,7 +257,7 @@ class horus extends rcube_plugin
             // Remembered so a later pixel hit from this same address can be
             // recognised as the sender re-reading their own copy.
             'sender_ip'  => rcube_utils::remote_addr() ?: null,
-            'tracked'    => $wanted && $injected,
+            'tracked'    => $injected,
         ]);
 
         if ($message_id && $docs) {

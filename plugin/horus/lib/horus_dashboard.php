@@ -722,7 +722,8 @@ class horus_dashboard
         return $out . html::div('horus-drawer-section',
             html::div('horus-drawer-title', rcube::Q($this->t('timeline')))
             . html::tag('table', 'horus-timeline', html::tag('tbody', null, $rows))
-        ) . self::render_client_table($events, $this->rc, $geo);
+        ) . self::render_client_table($events, $this->rc, $geo)
+            . self::render_action_tables($events, $this->rc, $geo, $docs);
     }
 
     private function event_tag($event)
@@ -1037,6 +1038,110 @@ class horus_dashboard
             . html::tag('table', 'horus-table horus-clients',
                 html::tag('thead', null, $head) . html::tag('tbody', null, $body))
         );
+    }
+
+    /**
+     * What was acted on, rather than who acted.
+     *
+     * The client roll-up answers "who was involved"; these answer "what did they go
+     * for" - one row per link clicked and one per file downloaded, with every
+     * individual hit folded away behind it. A table only exists when it has rows,
+     * because an empty "Links clicked" is worse than no table at all.
+     */
+    public static function render_action_tables($events, $rc, array $geo = [], array $docs = [])
+    {
+        $names = [];
+
+        foreach ($docs as $doc) {
+            $names[$doc['doc_id']] = $doc['filename'];
+        }
+
+        $clicks = [];
+        $downloads = [];
+
+        foreach ($events as $event) {
+            if ($event['type'] === horus_store::EVENT_CLICK && !empty($event['url'])) {
+                $clicks[$event['url']][] = $event;
+            }
+            else if ($event['type'] === horus_store::EVENT_DOC_DOWNLOAD) {
+                // A file deleted since it was sent still has its downloads to report.
+                $name = $names[$event['doc_id']] ?? $rc->gettext('horus.deletedfile');
+                $downloads[$name][] = $event;
+            }
+        }
+
+        return self::action_table($clicks, 'clicksummary', 'collink', 'colclicks', $rc, $geo)
+            . self::action_table($downloads, 'downloadsummary', 'colfile', 'coldownloads', $rc, $geo);
+    }
+
+    /**
+     * One roll-up table. Each row folds open into the individual hits behind it,
+     * using <details> so the fold survives without a line of JavaScript.
+     *
+     * @param array $groups What was acted on => the events that acted on it
+     */
+    private static function action_table(array $groups, $title, $what, $count, $rc, array $geo)
+    {
+        if (!$groups) {
+            return '';
+        }
+
+        $body = '';
+
+        foreach ($groups as $subject => $hits) {
+            $lines = '';
+
+            foreach ($hits as $hit) {
+                $lines .= html::div('horus-hit',
+                    html::span('horus-hit-when', rcube::Q(self::stamp($hit['created_at'], $rc)))
+                    . html::span('horus-ip', rcube::Q($hit['ip'] ?? ''))
+                    . html::span('horus-hit-where', self::place($hit['ip'] ?? '', $geo))
+                    . (!empty($hit['hostname']) ? html::span('horus-host', rcube::Q($hit['hostname'])) : '')
+                );
+            }
+
+            $body .= html::tag('tr', null,
+                html::tag('td', 'horus-subject-cell',
+                    html::tag('details', 'horus-hits',
+                        html::tag('summary', ['title' => $subject], rcube::Q($subject))
+                        . html::div('horus-hitlist', $lines))
+                )
+                . html::tag('td', 'horus-hit-count', count($hits))
+            );
+        }
+
+        $head = html::tag('tr', null,
+            html::tag('th', null, rcube::Q($rc->gettext('horus.' . $what)))
+            . html::tag('th', null, rcube::Q($rc->gettext('horus.' . $count)))
+        );
+
+        return html::div('horus-panel-section',
+            html::div('horus-drawer-title', rcube::Q($rc->gettext('horus.' . $title)))
+            . html::tag('table', 'horus-table horus-actions',
+                html::tag('thead', null, $head) . html::tag('tbody', null, $body))
+        );
+    }
+
+    /** Flag and place for an address, or a dash when it was never located. */
+    private static function place($ip, array $geo)
+    {
+        $info = $geo[$ip] ?? null;
+
+        if (empty($info['country_code']) && empty($info['city'])) {
+            return '&mdash;';
+        }
+
+        $bits = array_filter([$info['city'] ?? null, $info['country'] ?? null]);
+
+        return (!empty($info['country_code']) ? horus_flags::get($info['country_code'], 13) . ' ' : '')
+            . rcube::Q(implode(', ', $bits));
+    }
+
+    private static function stamp($value, $rc)
+    {
+        $ts = horus_store::ts($value);
+
+        return $ts ? $rc->format_date($ts) : '';
     }
 
     private function when($value)

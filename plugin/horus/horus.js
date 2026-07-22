@@ -353,6 +353,8 @@ function horus_render_docs() {
         row.appendChild(del);
         list.appendChild(row);
     });
+
+    horus_docs_warning();
 }
 
 function horus_set_busy(busy) {
@@ -459,6 +461,27 @@ function horus_toggle(enabled) {
     if (group) {
         group.style.opacity = enabled ? '' : '.55';
     }
+
+    horus_docs_warning();
+}
+
+/**
+ * Staged files with tracking off are dropped at send time - they are only reachable
+ * through a tracking link, so there is nothing honest to send. Say so while there is
+ * still time to change it, rather than letting the message leave a file behind.
+ */
+function horus_docs_warning() {
+    var note   = document.getElementById('horus-docs-off'),
+        toggle = document.getElementById('horus-track');
+
+    if (!note) {
+        return;
+    }
+
+    var staged  = Object.keys(horus_docs).length > 0,
+        tracking = !toggle || toggle.checked;
+
+    note.style.display = staged && !tracking ? '' : 'none';
 }
 
 /**

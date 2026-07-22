@@ -453,6 +453,15 @@ html.dark-mode .horus-tag-unknown { color: var(--horus-warning); }
 	line-height: 1.4;
 }
 
+/* Same shape as the hint, in the colour of something you should read. */
+.horus-warn {
+	font-size: 11px;
+	color: var(--horus-warning);
+	font-weight: 600;
+	margin-top: 6px;
+	line-height: 1.4;
+}
+
 .horus-uploading { color: var(--horus-muted); font-size: 12px; padding: 4px 0; }
 
 /* ------------------------------------------------------------ small screens */
@@ -1010,3 +1019,46 @@ html.dark-mode .horus-msgdata {
 
 .horus-clients td { vertical-align: middle; }
 .horus-clients .horus-fact-icon { margin-right: 3px; }
+
+/* ------------------------------------------ clicked links / downloaded files */
+
+.horus-actions {
+	font-size: 12px;
+	margin-top: 4px;
+}
+
+.horus-actions td { vertical-align: top; }
+
+.horus-subject-cell { width: 100%; }
+.horus-hit-count { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Same disclosure triangle as the raw-request block, so the two read alike. */
+.horus-hits > summary {
+	cursor: pointer;
+	list-style: none;
+	word-break: break-all;
+}
+
+.horus-hits > summary::before { content: "\25B8 "; color: var(--horus-muted); }
+.horus-hits[open] > summary::before { content: "\25BE "; }
+
+.horus-hitlist {
+	margin: 6px 0 4px 14px;
+	padding: 6px 8px;
+	background: var(--horus-surface-2);
+	border: 1px solid var(--horus-border);
+	border-radius: 6px;
+}
+
+.horus-hit {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 3px 0;
+	color: var(--horus-text-2);
+	line-height: 1.5;
+}
+
+.horus-hit + .horus-hit { border-top: 1px solid var(--horus-border); }
+.horus-hit-when { color: var(--horus-text); font-weight: 600; white-space: nowrap; }
+.horus-hit-where { color: var(--horus-text-2); }

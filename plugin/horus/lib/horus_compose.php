@@ -131,6 +131,10 @@ class horus_compose
                     'onclick' => "document.getElementById('horus-docfile').click()",
                 ], rcube::Q($this->plugin->gettext('adddocument')))
                 . html::div('horus-hint', rcube::Q($this->plugin->gettext('trackedattachmentshint')))
+                // Shown by the script when files are staged and tracking is off, so
+                // that dropping them is never a surprise at send time.
+                . html::div(['class' => 'horus-warn', 'id' => 'horus-docs-off', 'style' => 'display:none'],
+                    rcube::Q($this->plugin->gettext('trackedattachmentsoff')))
             )
         );
 

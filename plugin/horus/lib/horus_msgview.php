@@ -386,7 +386,8 @@ class horus_msgview
         }
 
         return html::tag('table', 'horus-timeline', html::tag('tbody', null, $rows))
-            . horus_dashboard::render_client_table($events, $this->rc, $geo);
+            . horus_dashboard::render_client_table($events, $this->rc, $geo)
+            . horus_dashboard::render_action_tables($events, $this->rc, $geo, $docs);
     }
 
     private function event_label($event)
