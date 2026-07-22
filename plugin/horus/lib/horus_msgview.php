@@ -341,7 +341,8 @@ class horus_msgview
                 $state[] = $this->t('viewed');
             }
             else {
-                $state[] = $this->t('notopened');
+                // A file is downloaded or it is not; "opened" is the message's word.
+                $state[] = $this->t('notdownloaded');
             }
 
             $badges[] = $this->badge(

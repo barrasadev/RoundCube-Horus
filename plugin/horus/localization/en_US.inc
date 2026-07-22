@@ -32,6 +32,7 @@ $labels['clicked']      = 'Clicked';
 $labels['viewed']       = 'Viewed';
 $labels['downloaded']   = 'Downloaded';
 $labels['notopened']    = 'Not opened';
+$labels['notdownloaded'] = 'Not downloaded';
 $labels['nottracked']   = 'Not tracked';
 $labels['timeonce']     = 'time';
 $labels['timesmany']    = 'times';
@@ -145,6 +146,7 @@ $labels['selfviews']          = 'Your own views';
 
 // Wording that reaches the RECIPIENT. Nothing here may hint at tracking.
 $labels['mailattachments'] = 'Attachments';
+$labels['maildownload']    = 'Download';
 $labels['notopenedyet'] = 'Not opened';
 $labels['files']        = 'files';
 

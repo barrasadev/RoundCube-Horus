@@ -65,7 +65,10 @@ class horus_injector
     }
 
     /**
-     * @param bool $download True for the Content-Disposition: attachment variant
+     * Both variants download the file; the flag survives because it is part of the
+     * signature, and messages sent before the landing page was dropped carry `d=0`.
+     *
+     * @param bool $download Mode bit carried in the URL and covered by the signature
      */
     public static function doc_url($doc_uuid, $download = false)
     {
@@ -185,8 +188,11 @@ class horus_injector
             . '\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">'
             . '<p style="margin:0 0 10px;font-weight:600;font-size:14px;color:#24292f;">' . $title . '</p>';
 
+        $action = rcube::Q($rcmail->config->get('horus_download_label')
+            ?: $rcmail->gettext('horus.maildownload'));
+
         foreach ($docs as $doc) {
-            $url  = htmlspecialchars(self::doc_url($doc['uuid'], false), ENT_QUOTES, 'UTF-8');
+            $url  = htmlspecialchars(self::doc_url($doc['uuid'], true), ENT_QUOTES, 'UTF-8');
             $name = rcube::Q($doc['filename']);
             $size = horus_storage::format_size($doc['size']);
             $kind = self::kind_label($doc['mimetype'], $doc['filename']);
@@ -194,15 +200,25 @@ class horus_injector
             // A text badge rather than an icon: mail clients strip inline SVG, and an
             // emoji renders differently (or not at all) across Outlook, Gmail and
             // Apple Mail. Plain styled text is the only thing that looks the same
-            // everywhere.
-            $html .= '<p style="margin:8px 0;font-size:14px;line-height:1.5;">'
+            // everywhere - which is also why the arrow below is a character and the
+            // button is a one-cell table with bgcolor: Outlook ignores background and
+            // border-radius on an <a>, but honours them on a <td>.
+            // A <div>, not a <p>: a <table> is not allowed inside a paragraph, so the
+            // parser would close it early and drop the button onto its own line.
+            $html .= '<div style="margin:8px 0;font-size:14px;line-height:1.5;">'
                 . '<span style="display:inline-block;min-width:38px;padding:2px 6px;margin-right:8px;'
                 . 'background:#e7ecf1;border-radius:4px;color:#57606a;font-size:11px;font-weight:700;'
                 . 'letter-spacing:.04em;text-align:center;">' . $kind . '</span>'
                 . '<a href="' . $url . '" style="color:#0969da;text-decoration:none;font-weight:500;">'
                 . $name . '</a>'
                 . ' <span style="color:#8b949e;font-size:12px;">(' . $size . ')</span>'
-                . '</p>';
+                . '<table role="presentation" cellpadding="0" cellspacing="0" border="0"'
+                . ' style="display:inline-table;vertical-align:middle;margin-left:10px;"><tr>'
+                . '<td bgcolor="#0969da" style="border-radius:6px;padding:5px 12px;">'
+                . '<a href="' . $url . '" style="color:#ffffff;text-decoration:none;font-size:12px;'
+                . 'font-weight:600;white-space:nowrap;">&#8595;&nbsp;' . $action . '</a>'
+                . '</td></tr></table>'
+                . '</div>';
         }
 
         return $html . '</div>';
@@ -220,7 +236,7 @@ class horus_injector
 
         foreach ($docs as $doc) {
             $out .= '- ' . $doc['filename'] . ' (' . horus_storage::format_size($doc['size']) . ")\n"
-                . '  ' . self::doc_url($doc['uuid'], false) . "\n";
+                . '  ' . self::doc_url($doc['uuid'], true) . "\n";
         }
 
         return $out;

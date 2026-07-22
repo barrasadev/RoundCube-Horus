@@ -689,7 +689,7 @@ class horus_dashboard
                     ? html::span('horus-tag horus-tag-ok', rcube::Q($this->t('downloaded')) . ' ' . rcube::Q($this->when($doc['first_download_at'])))
                     : ($doc['view_count'] > 0
                         ? html::span('horus-tag horus-tag-unknown', rcube::Q($this->t('viewed')) . ' ' . rcube::Q($this->when($doc['first_view_at'])))
-                        : html::span('horus-tag horus-tag-off', rcube::Q($this->t('notopened'))));
+                        : html::span('horus-tag horus-tag-off', rcube::Q($this->t('notdownloaded'))));
 
                 $items .= html::div('horus-docline',
                     horus_icons::get('attachment') . ' ' . rcube::Q($doc['filename'])

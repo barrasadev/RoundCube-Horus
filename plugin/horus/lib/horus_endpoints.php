@@ -124,12 +124,22 @@ class horus_endpoints
 
     // -------------------------------------------------------------- documents
 
+    /**
+     * Serve a tracked attachment.
+     *
+     * One click, one file. The link in the message hands the bytes straight back with
+     * Content-Disposition: attachment, so the recipient never lands on a page and never
+     * presses a second button - the browser downloads and stays where it was.
+     *
+     * The `d` flag is still part of the signature because messages sent before this
+     * change carry both variants: `d=0` used to mean "show me the landing page". Both
+     * now download, and both record a download, because that is what actually happens.
+     */
     private function handle_document()
     {
-        $uuid     = self::param('id');
-        $sig      = self::param('s');
-        $mode     = self::param('d') === '1' ? '1' : '0';
-        $download = $mode === '1';
+        $uuid = self::param('id');
+        $sig  = self::param('s');
+        $mode = self::param('d') === '1' ? '1' : '0';
 
         if (!horus_signer::verify(['doc', $uuid, $mode], $sig)) {
             $this->fail(400, 'Invalid document link');
@@ -148,22 +158,19 @@ class horus_endpoints
                 ->collect(self::remote_ip());
 
             $this->store->record_document_event(
-                $doc, $message,
-                $download ? horus_store::EVENT_DOC_DOWNLOAD : horus_store::EVENT_DOC_VIEW,
-                $intel
+                $doc, $message, horus_store::EVENT_DOC_DOWNLOAD, $intel
             );
         }
 
-        if ($download) {
-            $this->stream_document($doc);
-        }
-        else {
-            $this->render_document_page($doc);
-        }
+        $this->stream_document($doc);
     }
 
     /**
-     * Serve the file itself. This is the "downloaded" half of the view/download split.
+     * Serve the file itself.
+     *
+     * Always as an attachment, never inline - not even images. This is served from the
+     * webmail's own origin, and rendering recipient-supplied content there would be a
+     * stored-XSS surface.
      */
     private function stream_document(array $doc)
     {
@@ -178,46 +185,6 @@ class horus_endpoints
         $this->no_cache_headers();
 
         readfile($path);
-    }
-
-    /**
-     * The landing page a recipient reaches from the message. Reaching it is what we
-     * record as "viewed"; pressing the button records "downloaded".
-     *
-     * The file is never rendered inline here - not even images - because this page is
-     * served from the webmail's own origin and inlining recipient-supplied content
-     * there would be a stored-XSS surface.
-     */
-    private function render_document_page(array $doc)
-    {
-        $name = rcube::Q($doc['filename']);
-        $size = horus_storage::format_size($doc['size']);
-        $url  = rcube::Q(horus_injector::doc_url($doc['uuid'], true));
-
-        header('Content-Type: text/html; charset=utf-8');
-        header('X-Content-Type-Options: nosniff');
-        header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'");
-        $this->no_cache_headers();
-
-        echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
-            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            . '<title>' . $name . '</title><style>'
-            . 'body{margin:0;background:#f2f4f7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1f2328}'
-            . '.card{max-width:520px;margin:12vh auto;background:#fff;border:1px solid #e1e6eb;border-radius:12px;padding:40px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}'
-            . '.mark{color:#0969da}'
-            . 'h1{font-size:19px;margin:18px 0 6px;word-break:break-word}'
-            . '.meta{color:#68727d;font-size:13px;margin:0 0 26px}'
-            . 'a.btn{display:inline-flex;align-items:center;gap:8px;background:#0969da;color:#fff;'
-            . 'text-decoration:none;padding:11px 26px;border-radius:8px;font-size:15px;font-weight:600}'
-            . 'svg{vertical-align:middle}'
-            . '@media(prefers-color-scheme:dark){body{background:#161b22;color:#e6edf3}'
-            . '.card{background:#0d1117;border-color:#30363d}.meta{color:#8b949e}}'
-            . '</style></head><body><div class="card">'
-            . '<div class="mark">' . horus_icons::get('attachment', '', 34) . '</div>'
-            . '<h1>' . $name . '</h1>'
-            . '<p class="meta">' . $size . '</p>'
-            . '<a class="btn" href="' . $url . '">' . horus_icons::get('downloaded', '', 16) . ' Download</a>'
-            . '</div></body></html>';
     }
 
     // ----------------------------------------------------------------- helpers

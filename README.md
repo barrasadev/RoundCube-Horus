@@ -39,8 +39,9 @@ number.
   `horus`. Asserted by test against the real delivered MIME.
 - **Tracked attachments** — a second attachment zone in the compose screen. Those
   files are *not* attached to the message: they are stored server-side and the body
-  gets a link block instead, so opening and downloading each file is tracked
-  individually.
+  gets a link block instead — filename plus a download button — so each file is
+  tracked individually. One click downloads it: the link returns the bytes, never a
+  landing page.
 - A per-message "Enable tracking" toggle, defaulting to your preference.
 
 **Receiving**
@@ -262,8 +263,8 @@ These are real, and no email tracker escapes them. Better to know up front.
   let anyone probe which UUIDs exist.
 - Uploads reject executable extensions, are stored under a random 64-hex name with no
   extension, and are served only through the signed endpoint with `nosniff`.
-- The document landing page never inlines recipient-facing file content and ships a
-  restrictive CSP.
+- Documents are always returned as an attachment, never rendered inline, so
+  recipient-supplied content cannot execute on the webmail's own origin.
 - Compose actions require Roundcube's CSRF token.
 
 ---

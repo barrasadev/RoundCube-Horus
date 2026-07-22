@@ -51,6 +51,12 @@ $config['horus_max_doc_size'] = '25M';
 // Set to 0 to keep them forever.
 $config['horus_orphan_days'] = 7;
 
+// The two words the recipient actually reads: the heading above the file list, and
+// the label on the download button beside each file. Nothing here may hint at
+// tracking. Leave them unset to use the plugin's own neutral wording.
+// $config['horus_attachments_label'] = 'Attachments';
+// $config['horus_download_label']    = 'Download';
+
 // --------------------------------------------------------- bot detection
 
 // Extra CIDR blocks whose opens are always classified as bots. Users can add their
