@@ -13,7 +13,7 @@
 class horus_db
 {
     /** Bump this and drop a matching SQL/<driver>/<version>.sql when the schema changes. */
-    const SCHEMA_VERSION = 2026072104;
+    const SCHEMA_VERSION = 2026072105;
 
     const PACKAGE = 'horus';
 

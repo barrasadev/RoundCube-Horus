@@ -22,7 +22,20 @@ window.rcmail && rcmail.addEventListener('init', function () {
         horus_claim_compose_commands();
         horus_compose_init();
         horus_split_watch();
+        horus_schedule_init();
     }
+
+    // Scheduling: sidebar entry (mail task) and the list actions (horus task).
+    horus_sidebar_scheduled();
+    horus_scheduled_init();
+
+    rcmail.addEventListener('plugin.horus_sched_reload', function () {
+        setTimeout(function () { window.location.reload(); }, 700);
+    });
+
+    rcmail.addEventListener('plugin.horus_sched_edit', function (p) {
+        if (p && p.url) { window.location.href = p.url; }
+    });
 
     horus_chart_init();
 
@@ -47,7 +60,7 @@ window.rcmail && rcmail.addEventListener('init', function () {
  * Keep in step with the rcmail.command() calls in lib/horus_compose.php - the
  * static test asserts they match.
  */
-var HORUS_COMPOSE_COMMANDS = ['plugin.horus.upload', 'plugin.horus.delete', 'plugin.horus.toggle'];
+var HORUS_COMPOSE_COMMANDS = ['plugin.horus.upload', 'plugin.horus.delete', 'plugin.horus.toggle', 'plugin.horus.schedule'];
 
 /**
  * Tell Roundcube our compose commands stay in compose.
@@ -669,4 +682,193 @@ function horus_toggle_row(uuid) {
 
     var drawer = row.nextElementSibling;
     drawer.style.display = drawer.style.display === 'none' ? '' : 'none';
+}
+
+/* --------------------------------------------------------------- scheduling */
+
+/**
+ * A local datetime-local value ("YYYY-MM-DDTHH:MM") as a unix timestamp. The input is
+ * read in the browser's own clock, so the epoch already matches what the user sees.
+ */
+function horus_epoch(value) {
+    var t = value ? new Date(value).getTime() : 0;
+    return t > 0 ? Math.floor(t / 1000) : 0;
+}
+
+/** A datetime-local string for `default`, minutes into the future. */
+function horus_default_when(minutes) {
+    var d = new Date(Date.now() + minutes * 60000);
+    d.setSeconds(0, 0);
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+/**
+ * Ask for a send time, then submit the compose the normal way with `_horus_send_at`
+ * set. The server (message_before_send) freezes it instead of delivering.
+ */
+function horus_schedule_init() {
+    if (!rcmail.env.horus_scheduling) {
+        return;
+    }
+
+    // The command Roundcube must treat as "still composing", not "leaving the draft".
+    if (rcmail.env.compose_commands && rcmail.env.compose_commands.indexOf('plugin.horus.schedule') < 0) {
+        rcmail.env.compose_commands.push('plugin.horus.schedule');
+    }
+
+    rcmail.register_command('plugin.horus.schedule', horus_schedule_prompt, true);
+
+    // The send aborts server-side and reports success; relabel that success as
+    // "scheduled" so the compose never claims the message was sent.
+    var sent_ok = rcmail.sent_successfully;
+    rcmail.sent_successfully = function (type, msg, folders, save_error) {
+        if (rcmail.env.horus_is_scheduling) {
+            rcmail.env.horus_is_scheduling = false;
+            arguments[0] = 'confirmation';
+            arguments[1] = rcmail.get_label('scheduledone', 'horus');
+        }
+        return sent_ok.apply(rcmail, arguments);
+    };
+
+    var send = document.querySelector('#layout-content .btn.send, a.send, button.send');
+    if (!send || document.getElementById('horus-schedule-btn')) {
+        return;
+    }
+
+    var btn = document.createElement('a');
+    btn.id = 'horus-schedule-btn';
+    btn.href = '#';
+    btn.className = 'btn btn-secondary horus-schedule-btn';
+    btn.textContent = rcmail.get_label('schedule', 'horus');
+    btn.onclick = function (e) { e.preventDefault(); rcmail.command('plugin.horus.schedule'); return false; };
+    send.parentNode.insertBefore(btn, send.nextSibling);
+}
+
+function horus_schedule_prompt() {
+    horus_when_dialog(rcmail.get_label('schedulesend', 'horus'), horus_default_when(10), function (epoch) {
+        var form  = rcmail.gui_objects.messageform || document.forms['form'] || document.forms[0];
+        var input = form.elements['_horus_send_at'];
+
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_horus_send_at';
+            form.appendChild(input);
+        }
+
+        input.value = epoch;
+        rcmail.env.horus_is_scheduling = true;
+        rcmail.command('send', '');
+    });
+}
+
+/**
+ * A minimal date/time picker in a Roundcube dialog. Calls back with the chosen epoch,
+ * or does nothing on cancel or a past time.
+ */
+function horus_when_dialog(title, initial, onpick) {
+    var wrap = document.createElement('div');
+    wrap.className = 'horus-when';
+
+    var label = document.createElement('label');
+    label.textContent = rcmail.get_label('scheduleat', 'horus');
+
+    var input = document.createElement('input');
+    input.type = 'datetime-local';
+    input.className = 'form-control';
+    input.value = initial;
+
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+
+    var save = function () {
+        var epoch = horus_epoch(input.value);
+        if (epoch < Math.floor(Date.now() / 1000) + 30) {
+            rcmail.display_message(rcmail.get_label('schedulepast', 'horus'), 'error');
+            return;
+        }
+        horus_close_dialog(dialog);
+        onpick(epoch);
+    };
+
+    var buttons = [
+        { text: rcmail.get_label('scheduleconfirm', 'horus'), 'class': 'mainaction save', click: save },
+        { text: rcmail.get_label('cancel'), 'class': 'cancel', click: function () { horus_close_dialog(dialog); } }
+    ];
+
+    var dialog = rcmail.show_popup_dialog(wrap, title, buttons, { width: 380 });
+}
+
+/** Close a dialog opened with show_popup_dialog, across Roundcube versions. */
+function horus_close_dialog(dialog) {
+    if (dialog && typeof dialog.dialog === 'function') { dialog.dialog('close'); }
+    else if (rcmail.hide_dialog) { rcmail.hide_dialog(dialog); }
+}
+
+/* ----------------------------------------------------- scheduled view + list */
+
+/** Draw the folder-like "Scheduled" entry under the mail folder list. */
+function horus_sidebar_scheduled() {
+    if (rcmail.env.task !== 'mail' || !rcmail.env.horus_scheduling) {
+        return;
+    }
+
+    var list = document.getElementById('mailboxlist');
+    if (!list || document.getElementById('horus-sched-folder')) {
+        return;
+    }
+
+    var li = document.createElement('li');
+    li.id = 'horus-sched-folder';
+    li.className = 'mailbox horus-sched-folder';
+
+    var a = document.createElement('a');
+    a.href = rcmail.env.horus_sched_url;
+    a.className = 'horus-sched-link';
+    a.textContent = rcmail.get_label('scheduledfolder', 'horus');
+
+    var n = parseInt(rcmail.env.horus_sched_pending, 10) || 0;
+    if (n > 0) {
+        var badge = document.createElement('span');
+        badge.className = 'unreadcount';
+        badge.textContent = n;
+        a.appendChild(badge);
+    }
+
+    li.appendChild(a);
+    list.appendChild(li);
+}
+
+/** Wire the Cancel / Reschedule / Edit links in the Scheduled view. */
+function horus_scheduled_init() {
+    var root = document.getElementById('horus-scheduled');
+    if (!root) {
+        return;
+    }
+
+    root.addEventListener('click', function (e) {
+        var el = e.target.closest('a');
+        if (!el) { return; }
+
+        if (el.classList.contains('horus-sched-cancel')) {
+            e.preventDefault();
+            if (confirm(rcmail.get_label('cancelschedule', 'horus') + '?')) {
+                rcmail.http_post('plugin.horus.schedcancel', { _sched: el.getAttribute('rel') }, true);
+            }
+        }
+        else if (el.classList.contains('horus-sched-edit')) {
+            e.preventDefault();
+            rcmail.http_post('plugin.horus.schededit', { _sched: el.getAttribute('rel') }, true);
+        }
+        else if (el.classList.contains('horus-sched-move')) {
+            e.preventDefault();
+            var id = el.getAttribute('rel');
+            var when = parseInt(el.getAttribute('data-when'), 10) * 1000;
+            horus_when_dialog(rcmail.get_label('reschedule', 'horus'), horus_default_when(10), function (epoch) {
+                rcmail.http_post('plugin.horus.schedmove', { _sched: id, _when: epoch }, true);
+            });
+        }
+    });
 }

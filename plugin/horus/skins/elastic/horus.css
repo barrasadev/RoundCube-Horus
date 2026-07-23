@@ -1149,3 +1149,54 @@ html.dark-mode .horus-msgdata {
 	color: var(--horus-text-2);
 	background: var(--horus-surface);
 }
+
+/* ------------------------------------------------------------- scheduling */
+
+/* The folder-like "Scheduled" entry: it sits in the folder list but is not a
+   mailbox, so it only borrows the row look, not the treelist behaviour. */
+.horus-sched-folder > a.horus-sched-link {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.horus-sched-folder > a.horus-sched-link::before {
+	content: "\1F567";
+	font-size: 15px;
+	opacity: .7;
+}
+
+/* Schedule button, next to Send on the compose toolbar. */
+.horus-schedule-btn {
+	margin-inline-start: 6px;
+}
+
+/* The date/time dialog. */
+.horus-when {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 260px;
+}
+
+.horus-when label {
+	font-size: 13px;
+	color: var(--horus-text-2);
+}
+
+/* The scheduled list. Rows that have already gone out or failed are dimmed. */
+.horus-sched td { vertical-align: middle; }
+.horus-sched-when { white-space: nowrap; }
+.horus-sched-actions { white-space: nowrap; text-align: right; }
+
+.horus-sched-actions a {
+	margin-inline-start: 12px;
+	cursor: pointer;
+	color: var(--horus-s1);
+	text-decoration: none;
+}
+
+.horus-sched-actions a:hover { text-decoration: underline; }
+.horus-sched-cancel { color: #b1502a !important; }
+
+.horus-sched-done { opacity: .6; }

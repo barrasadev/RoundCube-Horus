@@ -10,6 +10,7 @@ $labels['timeline']         = 'Timeline';
 $labels['rawrequest']       = 'Raw request';
 $labels['search']           = 'Search';
 $labels['notfound']         = 'Not found';
+$labels['invalidrequest']   = 'Invalid request';
 
 // Compose
 $labels['enabletracking']         = 'Enable tracking';
@@ -135,6 +136,28 @@ $labels['foldercolor']       = 'Colour';
 $labels['nofoldercolor']     = 'No colour';
 $labels['customfoldercolor'] = 'Custom colour…';
 $labels['foldercolorhex']    = 'Colour as a hex value, for example #8e4ec6';
+
+// Scheduled messages
+$labels['prefsscheduling']     = 'Scheduled send';
+$labels['prefsschedulinghint'] = 'Adds a "Schedule" button to the compose screen and a Scheduled folder in the sidebar. A message you schedule is sent by a minute-by-minute background job, tracked exactly like an ordinary send.';
+$labels['scheduledfolder']   = 'Scheduled';
+$labels['schedule']          = 'Schedule';
+$labels['schedulesend']      = 'Schedule send';
+$labels['scheduleat']        = 'Send on';
+$labels['scheduleconfirm']   = 'Schedule';
+$labels['scheduled']         = 'Scheduled';
+$labels['scheduledfor']      = 'Scheduled for %s';
+$labels['scheduledempty']    = 'No scheduled messages';
+$labels['scheduledsent']     = 'Sent';
+$labels['scheduledpending']  = 'Scheduled';
+$labels['scheduledfailed']   = 'Failed';
+$labels['reschedule']        = 'Reschedule';
+$labels['cancelschedule']    = 'Cancel';
+$labels['editschedule']      = 'Edit';
+$labels['schedulepast']      = 'Pick a time in the future.';
+$labels['scheduledone']      = 'Message scheduled.';
+$labels['schedulecanceled']  = 'Scheduled message canceled.';
+$labels['schedulemoved']     = 'Message rescheduled.';
 
 // Chart range picker and interaction
 $labels['range7']     = '7 days';

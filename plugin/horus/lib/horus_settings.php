@@ -20,6 +20,7 @@ class horus_settings
         'horus_classify_opens'   => true,
         'horus_split_recipients' => false,
         'horus_folder_colors_enabled' => false,
+        'horus_scheduling_enabled' => false,
     ];
 
     /** @var array Memoised per user id */

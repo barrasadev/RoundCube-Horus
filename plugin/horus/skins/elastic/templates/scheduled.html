@@ -1,0 +1,16 @@
+<roundcube:include file="includes/layout.html" />
+<roundcube:include file="includes/menu.html" />
+
+<h1 class="voice"><roundcube:label name="horus.scheduledfolder" /></h1>
+
+<div id="layout-content" class="selected" role="main">
+	<div class="header">
+		<a class="button icon task-menu-button" href="#menu"><span class="inner"><roundcube:label name="menu" /></span></a>
+		<span class="header-title"><roundcube:label name="horus.scheduledfolder" /></span>
+	</div>
+	<div class="content">
+		<roundcube:object name="plugin.horus_scheduled" />
+	</div>
+</div>
+
+<roundcube:include file="includes/footer.html" />

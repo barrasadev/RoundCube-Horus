@@ -107,6 +107,14 @@ class horus extends rcube_plugin
             $this->register_action('search',  [$this, 'dashboard_action']);
             $this->register_action('details', [$this, 'dashboard_action']);
             $this->api->register_action('plugin.horus.markbot', $this->ID, [$this, 'markbot_action']);
+
+            if ($this->scheduling_enabled()) {
+                $this->register_action('scheduled', [$this, 'scheduled_action']);
+
+                foreach (['schedcancel', 'schedmove', 'schededit'] as $name) {
+                    $this->api->register_action('plugin.horus.' . $name, $this->ID, [$this, 'scheduled_action']);
+                }
+            }
         }
         else if ($task == 'mail') {
             $this->add_hook('message_objects', [$this, 'message_objects']);
@@ -130,6 +138,18 @@ class horus extends rcube_plugin
             if ($action == 'compose') {
                 $this->compose_ui();
             }
+
+            // Scheduling UI: the Schedule button on compose and the folder-like
+            // "Scheduled" entry in the sidebar, both drawn by horus.js from these.
+            if ($this->scheduling_enabled() && $this->rc->output) {
+                $this->add_texts('localization/');
+                $this->rc->output->set_env('horus_scheduling', true);
+                $this->rc->output->set_env('horus_sched_url',
+                    $this->rc->url(['_task' => 'horus', '_action' => 'scheduled']));
+                $this->rc->output->set_env('horus_sched_pending',
+                    $this->store()->count_pending($this->rc->user->ID));
+            }
+
         }
         else if ($task == 'settings') {
             $this->add_hook('preferences_sections_list', [$this, 'prefs_sections']);
@@ -230,6 +250,13 @@ class horus extends rcube_plugin
 
         $wanted = $this->tracking_requested();
 
+        // Scheduled send: freeze the fully-assembled message and hand it to the cron
+        // instead of delivering now. Independent of tracking - you can schedule an
+        // untracked message too.
+        if (($send_at = $this->scheduled_at()) !== null) {
+            return $this->schedule_message($args, $message, $wanted, $docs, $compose_id, $send_at);
+        }
+
         // Tracking off means tracking off. A tracked attachment is only ever reachable
         // through a tracking link, so sending one with tracking disabled would either
         // ship a link that reports back anyway or ship nothing the recipient can open.
@@ -248,31 +275,8 @@ class horus extends rcube_plugin
             return $this->send_per_recipient($args, $message, $headers, $recipients, $docs, $compose_id);
         }
 
-        $uuid = horus_store::uuid();
-        $html = $message->getHTMLBody();
-
-        // Tracking needs somewhere to put a pixel and a rewritten link, and a
-        // text/plain message has neither. Rather than silently sending an untrackable
-        // message, promote it: the original text stays as the plain alternative, so a
-        // plain-text reader sees exactly what they would have seen before.
-        if ($html === null || $html === '') {
-            $html = self::text_to_html((string) $message->getTXTBody());
-        }
-
-        $injected = false;
-
-        if ($html !== null && $html !== '') {
-            $message->setHTMLBody(horus_injector::process_html($html, $uuid, $docs));
-            $injected = true;
-        }
-
-        // The plain-text alternative is generated before this hook runs, so the
-        // document links have to be appended to it separately - otherwise a recipient
-        // reading text/plain has no way to reach the files at all.
-        if ($docs && ($text = $message->getTXTBody())) {
-            $message->setTXTBody($text . horus_injector::documents_block_text($docs));
-            $injected = true;
-        }
+        $uuid     = horus_store::uuid();
+        $injected = $this->apply_tracking($message, $uuid, $docs);
 
         $message_id = $store->create_message($user_id, [
             'uuid'       => $uuid,
@@ -300,6 +304,157 @@ class horus extends rcube_plugin
         $args['message'] = $message;
 
         return $args;
+    }
+
+    /**
+     * Apply Horus's tracking transforms to an outgoing message: promote a text-only
+     * body to HTML if needed, rewrite links and add the pixel + document block, and
+     * append the document links to the plain-text alternative.
+     *
+     * Shared by the immediate send and the scheduled freeze so both produce byte-for-byte
+     * the same tracked message.
+     *
+     * @return bool Whether anything was injected (i.e. the message is tracked)
+     */
+    private function apply_tracking($message, $uuid, array $docs)
+    {
+        $html = $message->getHTMLBody();
+
+        // Tracking needs somewhere to put a pixel and a rewritten link, and a
+        // text/plain message has neither. Rather than silently sending an untrackable
+        // message, promote it: the original text stays as the plain alternative, so a
+        // plain-text reader sees exactly what they would have seen before.
+        if ($html === null || $html === '') {
+            $html = self::text_to_html((string) $message->getTXTBody());
+        }
+
+        $injected = false;
+
+        if ($html !== null && $html !== '') {
+            $message->setHTMLBody(horus_injector::process_html($html, $uuid, $docs));
+            $injected = true;
+        }
+
+        // The plain-text alternative is generated before this hook runs, so the
+        // document links have to be appended to it separately - otherwise a recipient
+        // reading text/plain has no way to reach the files at all.
+        if ($docs && ($text = $message->getTXTBody())) {
+            $message->setTXTBody($text . horus_injector::documents_block_text($docs));
+            $injected = true;
+        }
+
+        return $injected;
+    }
+
+    // ---------------------------------------------------------------- scheduling
+
+    /**
+     * The UTC time this compose asked to be sent at, or null for an immediate send.
+     *
+     * The compose script posts `_horus_send_at` as a unix timestamp computed in the
+     * browser (so it already reflects the user's own clock). A past or too-soon value
+     * falls back to sending now, which is the safe thing to do if a schedule slips.
+     */
+    private function scheduled_at()
+    {
+        if (empty(horus_settings::get()['horus_scheduling_enabled'])) {
+            return null;
+        }
+
+        $raw = rcube_utils::get_input_value('_horus_send_at', rcube_utils::INPUT_POST);
+
+        if ($raw === null || $raw === '' || !ctype_digit((string) $raw)) {
+            return null;
+        }
+
+        $epoch = intval($raw);
+
+        // A schedule less than half a minute out is effectively "now" - deliver it
+        // normally rather than making the user wait for the next cron tick.
+        if ($epoch < time() + 30) {
+            return null;
+        }
+
+        return gmdate('Y-m-d H:i:s', $epoch);
+    }
+
+    /**
+     * Freeze a fully-assembled message for later delivery and abort the immediate send.
+     *
+     * The message is stored exactly as it will go out (tracking already applied), minus
+     * its Bcc header - the envelope recipient list carries the Bcc addresses instead, so
+     * they never leak into the delivered headers. The user's IMAP credential is kept,
+     * already encrypted by Roundcube in the session, only so the cron can file the Sent
+     * copy; it is wiped the moment the message is delivered.
+     */
+    private function schedule_message($args, $message, $wanted, array $docs, $compose_id, $send_at)
+    {
+        $store   = $this->store();
+        $user_id = $this->rc->user->ID;
+        $headers = $message->headers();
+
+        $uuid    = horus_store::uuid();
+        $tracked = $wanted ? $this->apply_tracking($message, $uuid, $docs) : false;
+
+        // Serialize the assembled message: header block without Bcc, a blank line, then
+        // the MIME body. The cron splits it back on the first blank line and hands the
+        // two halves to the SMTP layer, exactly as deliver_one() does for a live send.
+        $raw = $message->txtHeaders(['Bcc' => null], true) . "\r\n" . $message->get();
+        $key = $this->storage()->write($raw);
+
+        if (!$key) {
+            // Storage is unwritable; fall back to sending now rather than losing the mail.
+            rcube::raise_error([
+                    'code' => 601, 'file' => __FILE__, 'line' => __LINE__,
+                    'message' => 'Horus: could not stage scheduled message; sending immediately'
+                ], true, false);
+
+            return $args;
+        }
+
+        // What goes on the wire (To + Cc + Bcc) versus what we show in the list (To + Cc).
+        $envelope = $this->recipients($args, $headers);
+        $display  = trim(implode(', ', array_filter([
+            $this->header_text($headers['To'] ?? null),
+            $this->header_text($headers['Cc'] ?? null),
+        ])), ', ');
+
+        $store->create_scheduled($user_id, [
+            'uuid'         => $uuid,
+            'send_at'      => $send_at,
+            'subject'      => $headers['Subject'] ?? '',
+            'recipients'   => $display,
+            'envelope_to'  => implode(',', $envelope),
+            'from_addr'    => $this->address_of($args['from'] ?? ($headers['From'] ?? '')),
+            'sent_mbox'    => $this->rc->config->get('sent_mbox'),
+            'storage_key'  => $key,
+            'compose_id'   => $compose_id,
+            'imap_host'    => $_SESSION['storage_host'] ?? $this->rc->config->get('default_host'),
+            'imap_port'    => $_SESSION['storage_port'] ?? null,
+            'imap_ssl'     => $_SESSION['storage_ssl'] ?? null,
+            'imap_user'    => $_SESSION['username'] ?? null,
+            // Already encrypted with des_key by Roundcube; stored as-is, wiped on send.
+            'imap_pass_enc' => $_SESSION['password'] ?? null,
+            'tracked'      => $tracked,
+        ]);
+
+        $args['abort']  = true;
+        $args['result'] = true;
+        $args['error']  = null;
+
+        return $args;
+    }
+
+    /**
+     * Flatten a header value (string or address array) to a display string.
+     */
+    private function header_text($value)
+    {
+        if (empty($value)) {
+            return '';
+        }
+
+        return is_array($value) ? implode(', ', $value) : (string) $value;
     }
 
     /**
@@ -775,6 +930,33 @@ class horus extends rcube_plugin
 
         $dashboard = new horus_dashboard($this, $this->store(), $this->storage());
         $dashboard->run();
+    }
+
+    // --------------------------------------------------------------- scheduled
+
+    public function scheduled_action()
+    {
+        require_once __DIR__ . '/lib/horus_scheduler.php';
+
+        horus_db::ensure_schema($this->home);
+
+        $sched = new horus_scheduler($this, $this->store(), $this->storage());
+
+        if (strpos((string) $this->rc->action, 'plugin.horus.sched') === 0) {
+            $sched->handle_action();
+        }
+        else {
+            $sched->run();
+        }
+    }
+
+    /**
+     * Whether the logged-in user has turned scheduling on. Cheap wrapper so the several
+     * places that gate on it read the same way.
+     */
+    private function scheduling_enabled()
+    {
+        return !empty(horus_settings::get()['horus_scheduling_enabled']);
     }
 
     // ----------------------------------------------------------------- helpers

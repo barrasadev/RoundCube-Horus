@@ -1054,6 +1054,179 @@ class horus_store
         return $this->fetch_all($sql);
     }
 
+    // --------------------------------------------------------------- scheduled
+
+    /**
+     * Store a message queued for later delivery.
+     *
+     * The message body is already assembled (and, if tracking is on, already carries
+     * its pixel and links) and lives on disk under `storage_key`; this row is only the
+     * envelope and the bookkeeping the cron needs to deliver it. `imap_pass_enc` is the
+     * user's IMAP password encrypted with the Roundcube des_key, kept only so the cron
+     * can file the Sent copy, and wiped the moment the message goes out.
+     *
+     * @return int|false New scheduled_id
+     */
+    public function create_scheduled($user_id, array $data)
+    {
+        $this->db->query(
+            'INSERT INTO ' . $this->t('horus_scheduled')
+            . ' (`uuid`, `user_id`, `status`, `send_at`, `created_at`, `subject`, `recipients`,'
+            . '  `envelope_to`, `from_addr`, `sent_mbox`, `storage_key`, `compose_id`, `imap_host`, `imap_port`,'
+            . '  `imap_ssl`, `imap_user`, `imap_pass_enc`, `tracked`)'
+            . ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            $data['uuid'],
+            $user_id,
+            'pending',
+            $data['send_at'],
+            self::now(),
+            mb_substr((string) ($data['subject'] ?? ''), 0, 500),
+            mb_substr((string) ($data['recipients'] ?? ''), 0, 8000),
+            mb_substr((string) ($data['envelope_to'] ?? ''), 0, 8000),
+            mb_substr((string) ($data['from_addr'] ?? ''), 0, 250),
+            mb_substr((string) ($data['sent_mbox'] ?? ''), 0, 250),
+            $data['storage_key'],
+            mb_substr((string) ($data['compose_id'] ?? ''), 0, 64) ?: null,
+            mb_substr((string) ($data['imap_host'] ?? ''), 0, 250) ?: null,
+            !empty($data['imap_port']) ? intval($data['imap_port']) : null,
+            mb_substr((string) ($data['imap_ssl'] ?? ''), 0, 16) ?: null,
+            mb_substr((string) ($data['imap_user'] ?? ''), 0, 250) ?: null,
+            $data['imap_pass_enc'] ?? null,
+            !empty($data['tracked']) ? 1 : 0
+        );
+
+        return $this->db->insert_id('horus_scheduled');
+    }
+
+    public function get_scheduled($id)
+    {
+        $sql = $this->db->query(
+            'SELECT * FROM ' . $this->t('horus_scheduled') . ' WHERE `scheduled_id` = ?', intval($id)
+        );
+
+        return $this->db->fetch_assoc($sql) ?: null;
+    }
+
+    /**
+     * A user's scheduled messages, newest send time first. Cancelled rows are dropped
+     * from the row set entirely, so the view only ever shows live and past ones.
+     */
+    public function scheduled_for_user($user_id, $include_done = true)
+    {
+        $where  = ['`user_id` = ?', "`status` <> 'canceled'"];
+        $params = [intval($user_id)];
+
+        if (!$include_done) {
+            $where[] = "`status` = 'pending'";
+        }
+
+        $sql = $this->db->query(
+            'SELECT * FROM ' . $this->t('horus_scheduled')
+            . ' WHERE ' . implode(' AND ', $where)
+            . ' ORDER BY `send_at` DESC',
+            ...$params
+        );
+
+        return $this->fetch_all($sql);
+    }
+
+    public function count_pending($user_id)
+    {
+        $sql = $this->db->query(
+            'SELECT COUNT(*) AS n FROM ' . $this->t('horus_scheduled')
+            . " WHERE `user_id` = ? AND `status` = 'pending'",
+            intval($user_id)
+        );
+
+        $row = $this->db->fetch_assoc($sql);
+
+        return intval($row['n'] ?? 0);
+    }
+
+    /**
+     * Rows the cron should try to deliver now: pending and due. Ordered oldest-first so
+     * a backlog drains in the order it was queued.
+     */
+    public function due_scheduled($now_utc, $limit = 50)
+    {
+        $sql = $this->db->limitquery(
+            'SELECT * FROM ' . $this->t('horus_scheduled')
+            . " WHERE `status` = 'pending' AND `send_at` <= ? ORDER BY `send_at` ASC",
+            0, intval($limit), $now_utc
+        );
+
+        return $this->fetch_all($sql);
+    }
+
+    /**
+     * Mark a scheduled row delivered, link it to its tracking record, and wipe the
+     * stored credential — it has done its one job.
+     */
+    public function mark_scheduled_sent($id, $sent_message_id = null, $note = null)
+    {
+        $this->db->query(
+            'UPDATE ' . $this->t('horus_scheduled')
+            . " SET `status` = 'sent', `sent_message_id` = ?, `imap_pass_enc` = NULL, `last_error` = ?"
+            . ' WHERE `scheduled_id` = ?',
+            $sent_message_id ? intval($sent_message_id) : null,
+            $note !== null ? mb_substr((string) $note, 0, 2000) : null,
+            intval($id)
+        );
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    /**
+     * Record a failed delivery attempt. After `$max` attempts the row is parked as
+     * failed so the cron stops retrying it every minute forever.
+     */
+    public function mark_scheduled_attempt($id, $error, $max = 5)
+    {
+        $status = 'CASE WHEN `attempts` + 1 >= ' . intval($max) . " THEN 'failed' ELSE 'pending' END";
+
+        $this->db->query(
+            'UPDATE ' . $this->t('horus_scheduled')
+            . ' SET `attempts` = `attempts` + 1, `last_error` = ?, `status` = ' . $status
+            . ' WHERE `scheduled_id` = ?',
+            mb_substr((string) $error, 0, 2000),
+            intval($id)
+        );
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function update_scheduled_time($id, $send_at)
+    {
+        $this->db->query(
+            'UPDATE ' . $this->t('horus_scheduled')
+            . " SET `send_at` = ?, `status` = 'pending', `attempts` = 0, `last_error` = NULL"
+            . ' WHERE `scheduled_id` = ?',
+            $send_at, intval($id)
+        );
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function cancel_scheduled($id)
+    {
+        $this->db->query(
+            'UPDATE ' . $this->t('horus_scheduled')
+            . " SET `status` = 'canceled', `imap_pass_enc` = NULL WHERE `scheduled_id` = ?",
+            intval($id)
+        );
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function delete_scheduled($id)
+    {
+        $this->db->query(
+            'DELETE FROM ' . $this->t('horus_scheduled') . ' WHERE `scheduled_id` = ?', intval($id)
+        );
+
+        return $this->db->affected_rows() > 0;
+    }
+
     private function fetch_all($sql)
     {
         $out = [];

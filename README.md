@@ -44,6 +44,17 @@ number.
   landing page.
 - A per-message "Enable tracking" toggle, defaulting to your preference.
 
+**Scheduled send** *(off by default; enable it in Horus settings)*
+- A **Schedule** button on the compose screen: pick a time and the message is frozen
+  instead of sent. A **Scheduled** entry appears in the mail sidebar — it looks like a
+  folder but is not IMAP, so it cannot be moved or deleted by a mail client — listing
+  every waiting message with **Cancel**, **Reschedule** and **Edit**.
+- A once-a-minute cron (`bin/horus_cron.php`) delivers each message when its time comes,
+  through SMTP and tracked exactly like an ordinary send, and files the copy in Sent.
+- Plug-and-play: no mail-server changes. The Sent copy is filed by authenticating as the
+  user with their IMAP credential, which is frozen with the message — encrypted with
+  Roundcube's own `des_key`, used only to deliver, and wiped the instant it goes out.
+
 **Receiving**
 - Three public endpoints served by Roundcube before authentication:
   `/?_horus=px`, `/?_horus=click`, `/?_horus=doc`.
@@ -117,6 +128,19 @@ Roundcube core does. There is no separate database to provision and no
 
 The Roundcube database user needs `CREATE TABLE` once. That is the only requirement
 beyond a stock install.
+
+### Scheduled send (optional)
+
+The one feature that needs a cron. Nothing happens until a user turns on **Scheduled
+send** in Settings > Horus; once they do, install a minute cron that delivers due
+messages, running as the web-server user so it can read the stored bodies:
+
+```cron
+* * * * * /usr/bin/php /path/to/roundcube/plugins/horus/bin/horus_cron.php >/dev/null 2>&1
+```
+
+Without the cron, the Schedule button and the Scheduled list still work, but queued
+messages simply wait. The cron self-locks, so overlapping runs are harmless.
 
 ### Recommended configuration
 

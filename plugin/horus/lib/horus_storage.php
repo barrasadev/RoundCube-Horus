@@ -123,6 +123,49 @@ class horus_storage
         ];
     }
 
+    /**
+     * Store an in-memory blob (a serialized message) and return its key.
+     *
+     * The counterpart to store_upload() for data Horus generates itself rather than
+     * receives as an upload: a scheduled message's raw MIME. Same opaque hex-64 key
+     * and same deny-all directory, so it is never web-reachable.
+     *
+     * @return string|null Storage key, or null if the directory is not writable
+     */
+    public function write($bytes)
+    {
+        if (!$this->ensure_dir()) {
+            return null;
+        }
+
+        $key  = bin2hex(random_bytes(32));
+        $path = $this->path($key);
+
+        if ($path === null || @file_put_contents($path, $bytes) === false) {
+            return null;
+        }
+
+        @chmod($path, 0600);
+
+        return $key;
+    }
+
+    /**
+     * Read a blob written by write(). Returns null for an unknown or unreadable key.
+     */
+    public function read($key)
+    {
+        $path = $this->path($key);
+
+        if ($path === null || !is_file($path)) {
+            return null;
+        }
+
+        $bytes = @file_get_contents($path);
+
+        return $bytes === false ? null : $bytes;
+    }
+
     public function path($key)
     {
         // Defence in depth: the key comes from our own database, but a traversal here
