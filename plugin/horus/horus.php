@@ -376,7 +376,25 @@ class horus extends rcube_plugin
 
         $raw = rcube_utils::get_input_value('_horus_send_at', rcube_utils::INPUT_POST);
 
-        return self::parse_schedule_time($raw, $settings['horus_schedule_tz'] ?? 'UTC');
+        return self::parse_schedule_time($raw, $this->schedule_zone($settings));
+    }
+
+    /**
+     * The zone a bare local time should be read in.
+     *
+     * The pinned zone if there is one; otherwise the user's own Roundcube zone. Falling
+     * back to UTC here is what made "12:40" mean 14:40 for a user in Madrid, so the
+     * user's clock is the fallback, not the server's.
+     */
+    private function schedule_zone(array $settings)
+    {
+        if (!empty($settings['horus_schedule_tz'])) {
+            return $settings['horus_schedule_tz'];
+        }
+
+        $tz = (string) $this->rc->config->get('timezone');
+
+        return in_array($tz, DateTimeZone::listIdentifiers(), true) ? $tz : 'UTC';
     }
 
     /**

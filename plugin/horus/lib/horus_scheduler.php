@@ -186,7 +186,8 @@ class horus_scheduler
 
     private function do_reschedule($row)
     {
-        $tz      = horus_settings::get()['horus_schedule_tz'] ?? 'UTC';
+        // Same rule as scheduling: pinned zone, else the user's own Roundcube zone.
+        $tz = horus_settings::get()['horus_schedule_tz'] ?: (string) $this->rc->config->get('timezone');
         $send_at = horus::parse_schedule_time(rcube_utils::get_input_value('_when', rcube_utils::INPUT_POST), $tz);
 
         if ($row['status'] !== 'pending' || $send_at === null) {
