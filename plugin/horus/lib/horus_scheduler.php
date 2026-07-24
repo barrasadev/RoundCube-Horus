@@ -7,8 +7,9 @@
  * messages waiting to go out on the left, the message that will actually be sent
  * previewed on the right — but it is not an IMAP folder: the rows live in
  * horus_scheduled, so a mail client can never move or delete one. The toolbar carries
- * Edit / Reschedule / Delete instead of Reply / Forward. Delivery itself is the cron's
- * job (bin/horus_cron.php); this is only the cockpit.
+ * Reschedule / Delete instead of Reply / Forward - a queued message is not edited in
+ * place: delete it and write a new one. Delivery itself is the cron's job
+ * (bin/horus_cron.php); this is only the cockpit.
  *
  * @license GNU GPLv3+
  */
@@ -113,7 +114,6 @@ class horus_scheduler
             case 'plugin.horus.schedpreview': return $this->do_preview($row);
             case 'plugin.horus.schedcancel':  return $this->do_cancel($row);
             case 'plugin.horus.schedmove':    return $this->do_reschedule($row);
-            case 'plugin.horus.schededit':    return $this->do_edit($row);
             case 'plugin.horus.scheddelete':  return $this->do_delete($row);
             default:                          return $this->fail('invalidrequest');
         }
@@ -224,44 +224,6 @@ class horus_scheduler
 
         $this->rc->output->command('display_message', $this->plugin->gettext('scheduledtodrafts'), 'confirmation');
         $this->rc->output->command('plugin.horus_sched_reload');
-        $this->rc->output->send();
-    }
-
-    /**
-     * Edit: reopen the frozen message as a draft and go to compose, WITHOUT touching
-     * the schedule. The original stays queued, tagged with _horus_editing so that if
-     * the user reschedules from the edit, the send path replaces it; if they just close
-     * the compose, the original still goes out unchanged.
-     */
-    private function do_edit($row)
-    {
-        if ($row['status'] !== 'pending') {
-            return $this->fail('notfound');
-        }
-
-        $raw = $this->storage->read($row['storage_key']);
-
-        if ($raw === null) {
-            return $this->fail('notfound');
-        }
-
-        $raw    = $this->strip_pixel($raw);
-        $drafts = $this->rc->config->get('drafts_mbox') ?: 'Drafts';
-        $uid    = $this->rc->get_storage()->save_message($drafts, $raw, '', false, ['SEEN', 'DRAFT']);
-
-        if ($uid === false) {
-            return $this->fail('uploaderror');
-        }
-
-        $url = $this->rc->url([
-            '_task'          => 'mail',
-            '_action'        => 'compose',
-            '_draft_uid'     => $uid,
-            '_mbox'          => $drafts,
-            '_horus_editing' => intval($row['scheduled_id']),
-        ]);
-
-        $this->rc->output->command('plugin.horus_sched_edit', ['url' => $url]);
         $this->rc->output->send();
     }
 

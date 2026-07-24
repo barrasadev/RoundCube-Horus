@@ -51,11 +51,11 @@ number.
 - A **Scheduled** entry sits right under Sent in the mail sidebar and opens like any
   other folder — same folder list, same message list, same reading pane, and the task
   bar never leaves Mail. It is not IMAP, though, so no mail client can move or delete a
-  queued message. The toolbar carries **Edit**, **Reschedule** and **Delete** (which
-  drops the message into Drafts) instead of Reply and Forward.
-- **Editing never loses the original**: it reopens the message for you and only replaces
-  the queued one if you actually reschedule; close the compose and the original still
-  goes out.
+  queued message. The toolbar carries **Reschedule** and **Delete** (which drops the
+  message into Drafts) instead of Reply and Forward — a queued message is never edited
+  in place: delete it and write a new one.
+- Attachments ride along untouched: the frozen copy carries the real files and they
+  arrive byte for byte, asserted end to end against the delivered message.
 - A once-a-minute cron (`bin/horus_cron.php`) delivers each message when its time comes,
   through SMTP and tracked exactly like an ordinary send, and files the copy in Sent.
 - Plug-and-play: no mail-server changes. The Sent copy is filed by authenticating as the

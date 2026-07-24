@@ -33,10 +33,6 @@ window.rcmail && rcmail.addEventListener('init', function () {
         setTimeout(function () { window.location.reload(); }, 700);
     });
 
-    rcmail.addEventListener('plugin.horus_sched_edit', function (p) {
-        if (p && p.url) { window.location.href = p.url; }
-    });
-
     horus_chart_init();
 
     // Tag Sent-folder rows as they are inserted, so the list shows tracking state
@@ -751,16 +747,6 @@ function horus_schedule_prompt() {
 
         input.value = when;
 
-        // If this compose was opened by editing a scheduled message, carry that id so
-        // the server replaces the original rather than adding a second one.
-        if (rcmail.env.horus_editing && !form.elements['_horus_editing']) {
-            var ed = document.createElement('input');
-            ed.type = 'hidden';
-            ed.name = '_horus_editing';
-            ed.value = rcmail.env.horus_editing;
-            form.appendChild(ed);
-        }
-
         rcmail.env.horus_is_scheduling = true;
         rcmail.command('send', '');
     });
@@ -918,16 +904,8 @@ function horus_scheduled_init() {
     });
 
     // Toolbar actions operate on the selected row.
-    var edit = document.querySelector('.horus-tb-edit'),
-        move = document.querySelector('.horus-tb-move'),
+    var move = document.querySelector('.horus-tb-move'),
         del  = document.querySelector('.horus-tb-delete');
-
-    if (edit) edit.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (horus_sched_selected) {
-            rcmail.http_post('plugin.horus.schededit', { _sched: horus_sched_selected.id }, true);
-        }
-    });
 
     if (move) move.addEventListener('click', function (e) {
         e.preventDefault();
@@ -976,7 +954,7 @@ function horus_localize_times(root) {
 /** Enable the toolbar buttons that apply to a row in the given state. */
 function horus_sched_toolbar(status) {
     var pending = status === 'pending';
-    [['.horus-tb-edit', pending], ['.horus-tb-move', pending], ['.horus-tb-delete', pending]]
+    [['.horus-tb-move', pending], ['.horus-tb-delete', pending]]
         .forEach(function (pair) {
             var el = document.querySelector(pair[0]);
             if (el) { el.classList.toggle('disabled', !pair[1]); }

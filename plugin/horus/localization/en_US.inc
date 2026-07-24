@@ -156,7 +156,6 @@ $labels['scheduledpending']  = 'Scheduled';
 $labels['scheduledfailed']   = 'Failed';
 $labels['reschedule']        = 'Reschedule';
 $labels['cancelschedule']    = 'Cancel';
-$labels['editschedule']      = 'Edit';
 $labels['schedulepast']      = 'Pick a time in the future.';
 $labels['scheduledone']      = 'Message scheduled.';
 $labels['schedulecanceled']  = 'Scheduled message canceled.';
