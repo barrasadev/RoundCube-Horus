@@ -3,13 +3,44 @@
 
 <h1 class="voice"><roundcube:label name="horus.scheduledfolder" /></h1>
 
-<div id="layout-content" class="selected" role="main">
+<!-- the ordinary mail folder list: this view is a folder, not a detour -->
+<div id="layout-sidebar" class="listbox" role="navigation" aria-labelledby="aria-label-folderlist">
+	<div class="header">
+		<a class="button icon back-list-button" href="#back"><span class="inner"><roundcube:label name="back" /></span></a>
+		<span class="header-title username"><roundcube:object name="username" /></span>
+	</div>
+	<h2 id="aria-label-folderlist" class="voice"><roundcube:label name="arialabelfolderlist" /></h2>
+	<div id="folderlist-content" class="scroller">
+		<roundcube:object name="mailboxlist" id="mailboxlist" class="treelist listing folderlist" folder_filter="mail" unreadwrap="%s" />
+	</div>
+</div>
+
+<!-- the list of queued messages -->
+<div id="layout-list" class="listbox selected">
 	<div class="header">
 		<a class="button icon task-menu-button" href="#menu"><span class="inner"><roundcube:label name="menu" /></span></a>
 		<span class="header-title"><roundcube:label name="horus.scheduledfolder" /></span>
 	</div>
-	<div class="content">
-		<roundcube:object name="plugin.horus_scheduled" />
+	<div id="horus-sched-listbox" class="scroller">
+		<roundcube:object name="plugin.horus_scheduled_list" />
+	</div>
+</div>
+
+<!-- the preview of the message that will be sent -->
+<div id="layout-content">
+	<div class="header" role="toolbar">
+		<a class="button icon back-list-button" href="#back"><span class="inner"><roundcube:label name="back" /></span></a>
+		<span class="header-title"></span>
+		<div id="horus-sched-toolbar" class="toolbar" role="toolbar">
+			<a href="#edit" class="btn btn-secondary horus-tb horus-tb-edit disabled"><roundcube:label name="horus.editschedule" /></a>
+			<a href="#reschedule" class="btn btn-secondary horus-tb horus-tb-move disabled"><roundcube:label name="horus.reschedule" /></a>
+			<a href="#delete" class="btn btn-secondary horus-tb horus-tb-delete disabled"><roundcube:label name="horus.deletetodrafts" /></a>
+		</div>
+	</div>
+	<div class="iframe-wrapper">
+		<div id="horus-sched-preview" class="scroller">
+			<div class="horus-sched-placeholder"><roundcube:label name="horus.scheduledpick" /></div>
+		</div>
 	</div>
 </div>
 

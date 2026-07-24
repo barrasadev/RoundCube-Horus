@@ -21,6 +21,9 @@ class horus_settings
         'horus_split_recipients' => false,
         'horus_folder_colors_enabled' => false,
         'horus_scheduling_enabled' => false,
+        // Empty means "the user's own time zone", read from the browser. A named zone
+        // (e.g. 'Europe/Madrid') pins scheduling to that clock instead.
+        'horus_schedule_tz'        => '',
     ];
 
     /** @var array Memoised per user id */

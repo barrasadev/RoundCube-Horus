@@ -140,6 +140,9 @@ $labels['foldercolorhex']    = 'Colour as a hex value, for example #8e4ec6';
 // Scheduled messages
 $labels['prefsscheduling']     = 'Scheduled send';
 $labels['prefsschedulinghint'] = 'Adds a "Schedule" button to the compose screen and a Scheduled folder in the sidebar. A message you schedule is sent by a minute-by-minute background job, tracked exactly like an ordinary send.';
+$labels['prefsscheduletz']     = 'Time zone';
+$labels['prefsscheduletzhint'] = 'The clock scheduled times are shown and read in. Automatic uses your own time zone.';
+$labels['scheduletzauto']      = 'Automatic (your time zone)';
 $labels['scheduledfolder']   = 'Scheduled';
 $labels['schedule']          = 'Schedule';
 $labels['schedulesend']      = 'Schedule send';
@@ -158,6 +161,9 @@ $labels['schedulepast']      = 'Pick a time in the future.';
 $labels['scheduledone']      = 'Message scheduled.';
 $labels['schedulecanceled']  = 'Scheduled message canceled.';
 $labels['schedulemoved']     = 'Message rescheduled.';
+$labels['deletetodrafts']    = 'Delete';
+$labels['scheduledtodrafts'] = 'Moved to Drafts.';
+$labels['scheduledpick']     = 'Select a scheduled message to preview it.';
 
 // Chart range picker and interaction
 $labels['range7']     = '7 days';

@@ -107,14 +107,6 @@ class horus extends rcube_plugin
             $this->register_action('search',  [$this, 'dashboard_action']);
             $this->register_action('details', [$this, 'dashboard_action']);
             $this->api->register_action('plugin.horus.markbot', $this->ID, [$this, 'markbot_action']);
-
-            if ($this->scheduling_enabled()) {
-                $this->register_action('scheduled', [$this, 'scheduled_action']);
-
-                foreach (['schedcancel', 'schedmove', 'schededit'] as $name) {
-                    $this->api->register_action('plugin.horus.' . $name, $this->ID, [$this, 'scheduled_action']);
-                }
-            }
         }
         else if ($task == 'mail') {
             $this->add_hook('message_objects', [$this, 'message_objects']);
@@ -131,6 +123,14 @@ class horus extends rcube_plugin
 
             $this->api->register_action('plugin.horus.markbot', $this->ID, [$this, 'markbot_action']);
 
+            // Scheduled messages live under the mail task, so the view feels like a
+            // folder: the task bar does not change and the folder list stays put.
+            if ($this->scheduling_enabled()) {
+                foreach (['scheduled', 'schedpreview', 'schedcancel', 'schedmove', 'schededit', 'scheddelete'] as $name) {
+                    $this->api->register_action('plugin.horus.' . $name, $this->ID, [$this, 'scheduled_action']);
+                }
+            }
+
             // Tracked attachments have to survive "save as draft" and reopening.
             $this->add_hook('message_draftsaved', [$this, 'message_draftsaved']);
             $this->add_hook('message_compose', [$this, 'message_compose']);
@@ -144,10 +144,21 @@ class horus extends rcube_plugin
             if ($this->scheduling_enabled() && $this->rc->output) {
                 $this->add_texts('localization/');
                 $this->rc->output->set_env('horus_scheduling', true);
+                $this->rc->output->set_env('horus_schedule_tz',
+                    horus_settings::get()['horus_schedule_tz'] ?? 'UTC');
                 $this->rc->output->set_env('horus_sched_url',
-                    $this->rc->url(['_task' => 'horus', '_action' => 'scheduled']));
+                    $this->rc->url(['_task' => 'mail', '_action' => 'plugin.horus.scheduled']));
+                $this->rc->output->set_env('horus_sent_mbox', $this->rc->config->get('sent_mbox'));
                 $this->rc->output->set_env('horus_sched_pending',
                     $this->store()->count_pending($this->rc->user->ID));
+
+                // Carried from an Edit: message_compose stored which scheduled row this
+                // compose reopened, keyed on its compose id (the URL parameter is lost in
+                // Roundcube's redirect). Expose it so a reschedule can replace the row.
+                $cid = rcube_utils::get_input_string('_id', rcube_utils::INPUT_GPC);
+                if ($cid && !empty($_SESSION['horus_editing'][$cid])) {
+                    $this->rc->output->set_env('horus_editing', intval($_SESSION['horus_editing'][$cid]));
+                }
             }
 
         }
@@ -357,25 +368,56 @@ class horus extends rcube_plugin
      */
     private function scheduled_at()
     {
-        if (empty(horus_settings::get()['horus_scheduling_enabled'])) {
+        $settings = horus_settings::get();
+
+        if (empty($settings['horus_scheduling_enabled'])) {
             return null;
         }
 
         $raw = rcube_utils::get_input_value('_horus_send_at', rcube_utils::INPUT_POST);
 
-        if ($raw === null || $raw === '' || !ctype_digit((string) $raw)) {
+        return self::parse_schedule_time($raw, $settings['horus_schedule_tz'] ?? 'UTC');
+    }
+
+    /**
+     * The requested send time as a UTC "Y-m-d H:i:s" string, or null if empty,
+     * malformed, or too soon (the caller then sends now rather than waiting a tick).
+     *
+     * Two input shapes, matching the two scheduling modes:
+     *   - a bare unix timestamp, when the zone is "automatic": the browser has already
+     *     resolved the user's local time to an absolute instant, so it is taken as-is;
+     *   - a "YYYY-MM-DDTHH:MM" local datetime, when a named zone is pinned: it is read
+     *     in that zone.
+     *
+     * Shared by the schedule and reschedule paths so both read a time the same way.
+     */
+    public static function parse_schedule_time($raw, $tz)
+    {
+        $raw = trim((string) $raw);
+
+        if (ctype_digit($raw)) {
+            $ts = intval($raw);
+        }
+        else if (preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}$/', $raw)) {
+            try {
+                $zone = new DateTimeZone($tz ?: 'UTC');
+            }
+            catch (Exception $e) {
+                $zone = new DateTimeZone('UTC');
+            }
+
+            $when = DateTime::createFromFormat('Y-m-d H:i', str_replace('T', ' ', $raw), $zone);
+            $ts   = $when ? $when->getTimestamp() : 0;
+        }
+        else {
             return null;
         }
 
-        $epoch = intval($raw);
-
-        // A schedule less than half a minute out is effectively "now" - deliver it
-        // normally rather than making the user wait for the next cron tick.
-        if ($epoch < time() + 30) {
+        if ($ts < time() + 30) {
             return null;
         }
 
-        return gmdate('Y-m-d H:i:s', $epoch);
+        return gmdate('Y-m-d H:i:s', $ts);
     }
 
     /**
@@ -413,16 +455,18 @@ class horus extends rcube_plugin
         }
 
         // What goes on the wire (To + Cc + Bcc) versus what we show in the list (To + Cc).
+        // The display strings are MIME-decoded so a subject or name with accents reads
+        // as text in the list, not as an =?UTF-8?...?= encoded word.
         $envelope = $this->recipients($args, $headers);
-        $display  = trim(implode(', ', array_filter([
+        $display  = rcube_mime::decode_header(trim(implode(', ', array_filter([
             $this->header_text($headers['To'] ?? null),
             $this->header_text($headers['Cc'] ?? null),
-        ])), ', ');
+        ])), ', '));
 
         $store->create_scheduled($user_id, [
             'uuid'         => $uuid,
             'send_at'      => $send_at,
-            'subject'      => $headers['Subject'] ?? '',
+            'subject'      => rcube_mime::decode_header($headers['Subject'] ?? ''),
             'recipients'   => $display,
             'envelope_to'  => implode(',', $envelope),
             'from_addr'    => $this->address_of($args['from'] ?? ($headers['From'] ?? '')),
@@ -437,6 +481,23 @@ class horus extends rcube_plugin
             'imap_pass_enc' => $_SESSION['password'] ?? null,
             'tracked'      => $tracked,
         ]);
+
+        // If this compose came from editing a scheduled message, the edit is now the
+        // real one: retire the original it was opened from. Reaching here at all means
+        // the user chose to reschedule, so replacing it is what they asked for; had they
+        // just closed the compose, the original would have been left untouched.
+        $editing = intval(rcube_utils::get_input_value('_horus_editing', rcube_utils::INPUT_POST));
+
+        if ($editing) {
+            $orig = $this->store->get_scheduled($editing);
+
+            if ($orig && $orig['user_id'] == $user_id && $orig['status'] === 'pending') {
+                $this->store->cancel_scheduled($editing);
+                $this->storage()->delete($orig['storage_key']);
+            }
+
+            unset($_SESSION['horus_editing'][$compose_id]);
+        }
 
         $args['abort']  = true;
         $args['result'] = true;
@@ -744,6 +805,16 @@ class horus extends rcube_plugin
      */
     public function message_compose($args)
     {
+        // Opened from editing a scheduled message: remember which row this compose came
+        // from, keyed on its compose id, so the reschedule can replace the original. The
+        // id survives Roundcube's internal redirect to the compose page this way (the
+        // _horus_editing URL parameter does not).
+        $editing = intval(rcube_utils::get_input_value('_horus_editing', rcube_utils::INPUT_GPC));
+
+        if ($editing && !empty($args['id'])) {
+            $_SESSION['horus_editing'][$args['id']] = $editing;
+        }
+
         $uid = $args['param']['draft_uid'] ?? null;
 
         if (empty($uid) || empty($args['id'])) {
@@ -942,11 +1013,12 @@ class horus extends rcube_plugin
 
         $sched = new horus_scheduler($this, $this->store(), $this->storage());
 
-        if (strpos((string) $this->rc->action, 'plugin.horus.sched') === 0) {
-            $sched->handle_action();
+        // plugin.horus.scheduled is the view; plugin.horus.sched* are its AJAX actions.
+        if ($this->rc->action === 'plugin.horus.scheduled') {
+            $sched->run();
         }
         else {
-            $sched->run();
+            $sched->handle_action();
         }
     }
 

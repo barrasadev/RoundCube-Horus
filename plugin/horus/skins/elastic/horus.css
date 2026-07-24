@@ -1153,17 +1153,28 @@ html.dark-mode .horus-msgdata {
 /* ------------------------------------------------------------- scheduling */
 
 /* The folder-like "Scheduled" entry: it sits in the folder list but is not a
-   mailbox, so it only borrows the row look, not the treelist behaviour. */
+   mailbox, so it only borrows the row look, not the treelist behaviour. A clock
+   glyph as an SVG mask (not an emoji, which rendered off-baseline), tinted with the
+   row's own colour so it tracks light/dark like every other folder icon. */
 .horus-sched-folder > a.horus-sched-link {
 	display: flex;
 	align-items: center;
-	gap: 8px;
 }
 
 .horus-sched-folder > a.horus-sched-link::before {
-	content: "\1F567";
-	font-size: 15px;
-	opacity: .7;
+	content: "";
+	flex: 0 0 auto;
+	width: 1.2em;
+	height: 1.2em;
+	margin-right: .5em;
+	background-color: currentColor;
+	opacity: .85;
+	-webkit-mask: var(--horus-clock) center / contain no-repeat;
+	mask: var(--horus-clock) center / contain no-repeat;
+}
+
+:root {
+	--horus-clock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>");
 }
 
 /* Schedule button, next to Send on the compose toolbar. */
@@ -1184,19 +1195,50 @@ html.dark-mode .horus-msgdata {
 	color: var(--horus-text-2);
 }
 
-/* The scheduled list. Rows that have already gone out or failed are dimmed. */
-.horus-sched td { vertical-align: middle; }
-.horus-sched-when { white-space: nowrap; }
-.horus-sched-actions { white-space: nowrap; text-align: right; }
+/* The Scheduled view reads like the inbox: a list of queued messages, each a
+   two-line row (recipient + time, then subject + state), and a preview on the right. */
+.horus-sched-list { display: flex; flex-direction: column; }
 
-.horus-sched-actions a {
-	margin-inline-start: 12px;
+.horus-sched-empty { padding: 24px; }
+
+.horus-sched-item {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-areas: "to when" "subject state";
+	gap: 2px 12px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--horus-border);
 	cursor: pointer;
-	color: var(--horus-s1);
-	text-decoration: none;
 }
 
-.horus-sched-actions a:hover { text-decoration: underline; }
-.horus-sched-cancel { color: #b1502a !important; }
+.horus-sched-item:hover { background: var(--horus-surface-2); }
+.horus-sched-item.selected { background: var(--horus-s1-bg, rgba(42,120,214,.12)); }
+.horus-sched-item.horus-sched-done { opacity: .6; }
 
-.horus-sched-done { opacity: .6; }
+.horus-sched-to      { grid-area: to; font-weight: 600; }
+.horus-sched-when    { grid-area: when; color: var(--horus-text-2); font-size: 12px; white-space: nowrap; }
+.horus-sched-subject { grid-area: subject; color: var(--horus-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.horus-sched-state   { grid-area: state; }
+
+/* Toolbar buttons carry their own label in this view, not just an icon. */
+#horus-sched-toolbar { display: flex; gap: 8px; align-items: center; }
+.horus-tb.disabled { opacity: .45; pointer-events: none; }
+.horus-tb-delete { color: #b1502a; }
+
+/* The preview pane: address lines, then the washed message body. */
+#horus-sched-preview { padding: 0; }
+.horus-sched-placeholder { padding: 32px; color: var(--horus-muted); text-align: center; }
+
+.horus-preview-head {
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--horus-border);
+	background: var(--horus-surface-2);
+}
+
+.horus-preview-metaline { font-size: 13px; line-height: 1.7; }
+.horus-preview-metalabel { color: var(--horus-text-2); }
+.horus-preview-metaval { color: var(--horus-text); font-weight: 500; }
+
+.horus-preview-body { padding: 20px; color: var(--horus-text); line-height: 1.5; }
+.horus-preview-body img { max-width: 100%; height: auto; }
+.horus-preview-text { white-space: pre-wrap; font-family: inherit; margin: 0; }

@@ -686,15 +686,6 @@ function horus_toggle_row(uuid) {
 
 /* --------------------------------------------------------------- scheduling */
 
-/**
- * A local datetime-local value ("YYYY-MM-DDTHH:MM") as a unix timestamp. The input is
- * read in the browser's own clock, so the epoch already matches what the user sees.
- */
-function horus_epoch(value) {
-    var t = value ? new Date(value).getTime() : 0;
-    return t > 0 ? Math.floor(t / 1000) : 0;
-}
-
 /** A datetime-local string for `default`, minutes into the future. */
 function horus_default_when(minutes) {
     var d = new Date(Date.now() + minutes * 60000);
@@ -747,7 +738,7 @@ function horus_schedule_init() {
 }
 
 function horus_schedule_prompt() {
-    horus_when_dialog(rcmail.get_label('schedulesend', 'horus'), horus_default_when(10), function (epoch) {
+    horus_when_dialog(rcmail.get_label('schedulesend', 'horus'), horus_default_when(10), function (when) {
         var form  = rcmail.gui_objects.messageform || document.forms['form'] || document.forms[0];
         var input = form.elements['_horus_send_at'];
 
@@ -758,22 +749,38 @@ function horus_schedule_prompt() {
             form.appendChild(input);
         }
 
-        input.value = epoch;
+        input.value = when;
+
+        // If this compose was opened by editing a scheduled message, carry that id so
+        // the server replaces the original rather than adding a second one.
+        if (rcmail.env.horus_editing && !form.elements['_horus_editing']) {
+            var ed = document.createElement('input');
+            ed.type = 'hidden';
+            ed.name = '_horus_editing';
+            ed.value = rcmail.env.horus_editing;
+            form.appendChild(ed);
+        }
+
         rcmail.env.horus_is_scheduling = true;
         rcmail.command('send', '');
     });
 }
 
 /**
- * A minimal date/time picker in a Roundcube dialog. Calls back with the chosen epoch,
- * or does nothing on cancel or a past time.
+ * A minimal date/time picker in a Roundcube dialog. Calls back with the chosen local
+ * datetime string ("YYYY-MM-DDTHH:MM"); the server reads it in the configured zone.
+ * Does nothing on cancel or a clearly-past time.
  */
 function horus_when_dialog(title, initial, onpick) {
     var wrap = document.createElement('div');
     wrap.className = 'horus-when';
 
+    var tz = rcmail.env.horus_schedule_tz || '';
+
     var label = document.createElement('label');
-    label.textContent = rcmail.get_label('scheduleat', 'horus');
+    // Automatic mode reads the browser's own clock; a pinned zone is named so the user
+    // knows which one the time they type is in.
+    label.textContent = rcmail.get_label('scheduleat', 'horus') + (tz ? ' (' + tz + ')' : '');
 
     var input = document.createElement('input');
     input.type = 'datetime-local';
@@ -784,13 +791,15 @@ function horus_when_dialog(title, initial, onpick) {
     wrap.appendChild(input);
 
     var save = function () {
-        var epoch = horus_epoch(input.value);
-        if (epoch < Math.floor(Date.now() / 1000) + 30) {
+        if (!input.value) {
             rcmail.display_message(rcmail.get_label('schedulepast', 'horus'), 'error');
             return;
         }
         horus_close_dialog(dialog);
-        onpick(epoch);
+        // Automatic: resolve the local time to an absolute unix timestamp in the
+        // browser (so it means exactly what the user sees). Pinned zone: send the raw
+        // local string and let the server read it in that zone.
+        onpick(tz ? input.value : String(Math.floor(new Date(input.value).getTime() / 1000)));
     };
 
     var buttons = [
@@ -824,6 +833,12 @@ function horus_sidebar_scheduled() {
     li.id = 'horus-sched-folder';
     li.className = 'mailbox horus-sched-folder';
 
+    // The view lives under the mail task, so opening it keeps the folder list and the
+    // task bar exactly where they are - it reads as another folder, not a detour.
+    if (rcmail.env.action === 'plugin.horus.scheduled') {
+        li.className += ' selected';
+    }
+
     var a = document.createElement('a');
     a.href = rcmail.env.horus_sched_url;
     a.className = 'horus-sched-link';
@@ -838,37 +853,132 @@ function horus_sidebar_scheduled() {
     }
 
     li.appendChild(a);
-    list.appendChild(li);
+
+    // Sit directly under Sent, where a "waiting to be sent" folder belongs.
+    var sent = horus_folder_item(list, rcmail.env.horus_sent_mbox);
+
+    if (sent && sent.parentNode === list) {
+        list.insertBefore(li, sent.nextSibling);
+    }
+    else {
+        list.appendChild(li);
+    }
 }
 
-/** Wire the Cancel / Reschedule / Edit links in the Scheduled view. */
+/** The folder list's top-level <li> for a mailbox, by name. */
+function horus_folder_item(list, mbox) {
+    if (!mbox) {
+        return null;
+    }
+
+    // Roundcube ids the rows as rcmli<encoded mailbox>; fall back to matching the link.
+    var id = 'rcmli' + String(mbox).replace(/[^a-z0-9\-_]/gi, function (c) {
+        return c.charCodeAt(0).toString(16);
+    });
+
+    var el = document.getElementById(id);
+
+    if (!el) {
+        var link = list.querySelector('a[rel="' + mbox + '"]');
+        el = link ? link.closest('li') : null;
+    }
+
+    return el;
+}
+
+/**
+ * The Scheduled view: a list on the left, the message that will be sent previewed on
+ * the right, and a toolbar of Edit / Reschedule / Delete acting on the selected row.
+ */
+var horus_sched_selected = null;
+
 function horus_scheduled_init() {
-    var root = document.getElementById('horus-scheduled');
-    if (!root) {
+    var list = document.getElementById('horus-scheduled');
+    if (!list) {
         return;
     }
 
-    root.addEventListener('click', function (e) {
-        var el = e.target.closest('a');
-        if (!el) { return; }
+    // Select a row -> preview the message it will send.
+    list.addEventListener('click', function (e) {
+        var item = e.target.closest('.horus-sched-item');
+        if (!item) { return; }
 
-        if (el.classList.contains('horus-sched-cancel')) {
-            e.preventDefault();
-            if (confirm(rcmail.get_label('cancelschedule', 'horus') + '?')) {
-                rcmail.http_post('plugin.horus.schedcancel', { _sched: el.getAttribute('rel') }, true);
-            }
-        }
-        else if (el.classList.contains('horus-sched-edit')) {
-            e.preventDefault();
-            rcmail.http_post('plugin.horus.schededit', { _sched: el.getAttribute('rel') }, true);
-        }
-        else if (el.classList.contains('horus-sched-move')) {
-            e.preventDefault();
-            var id = el.getAttribute('rel');
-            var when = parseInt(el.getAttribute('data-when'), 10) * 1000;
-            horus_when_dialog(rcmail.get_label('reschedule', 'horus'), horus_default_when(10), function (epoch) {
-                rcmail.http_post('plugin.horus.schedmove', { _sched: id, _when: epoch }, true);
-            });
+        [].forEach.call(list.querySelectorAll('.horus-sched-item.selected'), function (n) {
+            n.classList.remove('selected');
+        });
+        item.classList.add('selected');
+
+        horus_sched_selected = { id: item.getAttribute('data-id'), status: item.getAttribute('data-status') };
+        horus_sched_toolbar(item.getAttribute('data-status'));
+
+        // On a narrow layout, reveal the preview pane the way the mail list does.
+        if (window.UI && UI.show_content) { UI.show_content(true); }
+
+        rcmail.http_post('plugin.horus.schedpreview', { _sched: horus_sched_selected.id }, true);
+    });
+
+    // Toolbar actions operate on the selected row.
+    var edit = document.querySelector('.horus-tb-edit'),
+        move = document.querySelector('.horus-tb-move'),
+        del  = document.querySelector('.horus-tb-delete');
+
+    if (edit) edit.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (horus_sched_selected) {
+            rcmail.http_post('plugin.horus.schededit', { _sched: horus_sched_selected.id }, true);
         }
     });
+
+    if (move) move.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (!horus_sched_selected) { return; }
+        var id = horus_sched_selected.id;
+        horus_when_dialog(rcmail.get_label('reschedule', 'horus'), horus_default_when(10), function (when) {
+            rcmail.http_post('plugin.horus.schedmove', { _sched: id, _when: when }, true);
+        });
+    });
+
+    if (del) del.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (horus_sched_selected && confirm(rcmail.get_label('deletetodrafts', 'horus') + '?')) {
+            rcmail.http_post('plugin.horus.scheddelete', { _sched: horus_sched_selected.id }, true);
+        }
+    });
+
+    // Fill the preview pane when the server sends a message back.
+    rcmail.addEventListener('plugin.horus_sched_preview', function (p) {
+        var pane = document.getElementById('horus-sched-preview');
+        if (pane && p) { pane.innerHTML = p.html; horus_localize_times(pane); }
+    });
+
+    horus_localize_times(list);
+}
+
+/**
+ * Re-render every [data-ts] time in the viewer's own clock. The server sends the
+ * absolute instant (a unix timestamp); the browser is the only place that reliably
+ * knows the user's zone, so the display is done here — this is what keeps "sent at
+ * 05:00" meaning 05:00 on the user's wall clock.
+ */
+function horus_localize_times(root) {
+    var tz = rcmail.env.horus_schedule_tz || undefined;  // undefined = browser zone
+    var opts = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    if (tz) { opts.timeZone = tz; }
+
+    [].forEach.call((root || document).querySelectorAll('.horus-ts[data-ts]'), function (el) {
+        var ts = parseInt(el.getAttribute('data-ts'), 10);
+        if (ts > 0) {
+            try { el.textContent = new Date(ts * 1000).toLocaleString([], opts); } catch (e) {}
+        }
+    });
+}
+
+/** Enable the toolbar buttons that apply to a row in the given state. */
+function horus_sched_toolbar(status) {
+    var pending = status === 'pending';
+    [['.horus-tb-edit', pending], ['.horus-tb-move', pending], ['.horus-tb-delete', pending]]
+        .forEach(function (pair) {
+            var el = document.querySelector(pair[0]);
+            if (el) { el.classList.toggle('disabled', !pair[1]); }
+        });
 }

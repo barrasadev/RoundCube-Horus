@@ -46,9 +46,16 @@ number.
 
 **Scheduled send** *(off by default; enable it in Horus settings)*
 - A **Schedule** button on the compose screen: pick a time and the message is frozen
-  instead of sent. A **Scheduled** entry appears in the mail sidebar — it looks like a
-  folder but is not IMAP, so it cannot be moved or deleted by a mail client — listing
-  every waiting message with **Cancel**, **Reschedule** and **Edit**.
+  instead of sent. Times are read and shown on **your own clock** by default; a fixed
+  zone can be pinned in settings.
+- A **Scheduled** entry sits right under Sent in the mail sidebar and opens like any
+  other folder — same folder list, same message list, same reading pane, and the task
+  bar never leaves Mail. It is not IMAP, though, so no mail client can move or delete a
+  queued message. The toolbar carries **Edit**, **Reschedule** and **Delete** (which
+  drops the message into Drafts) instead of Reply and Forward.
+- **Editing never loses the original**: it reopens the message for you and only replaces
+  the queued one if you actually reschedule; close the compose and the original still
+  goes out.
 - A once-a-minute cron (`bin/horus_cron.php`) delivers each message when its time comes,
   through SMTP and tracked exactly like an ordinary send, and files the copy in Sent.
 - Plug-and-play: no mail-server changes. The Sent copy is filed by authenticating as the

@@ -96,6 +96,21 @@ class horus_prefs
                 . html::div('horus-hint', rcube::Q($this->plugin->gettext('prefsschedulinghint'))),
         ];
 
+        // The clock a scheduled time is read in. Defaults to UTC so a value is never
+        // ambiguous; a user in another zone sets it here once.
+        $tz = new html_select(['id' => 'horus_schedule_tz', 'name' => '_horus_schedule_tz', 'class' => 'custom-select']);
+        $tz->add($this->plugin->gettext('scheduletzauto'), '');
+
+        foreach (DateTimeZone::listIdentifiers() as $zone) {
+            $tz->add(str_replace('_', ' ', $zone), $zone);
+        }
+
+        $blocks['scheduling']['options']['horus_schedule_tz'] = [
+            'title'   => html::label('horus_schedule_tz', rcube::Q($this->plugin->gettext('prefsscheduletz'))),
+            'content' => $tz->show($settings['horus_schedule_tz'] ?: 'UTC')
+                . html::div('horus-hint', rcube::Q($this->plugin->gettext('prefsscheduletzhint'))),
+        ];
+
         // --- bot ranges -------------------------------------------------------
         $blocks['bots']['name'] = $this->plugin->gettext('prefsbots');
 
@@ -157,6 +172,9 @@ class horus_prefs
         $args['prefs']['horus_split_recipients'] = (bool) rcube_utils::get_input_value('_horus_split', rcube_utils::INPUT_POST);
         $args['prefs']['horus_folder_colors_enabled'] = (bool) rcube_utils::get_input_value('_horus_folder_colors', rcube_utils::INPUT_POST);
         $args['prefs']['horus_scheduling_enabled'] = (bool) rcube_utils::get_input_value('_horus_scheduling', rcube_utils::INPUT_POST);
+
+        $tz = (string) rcube_utils::get_input_value('_horus_schedule_tz', rcube_utils::INPUT_POST);
+        $args['prefs']['horus_schedule_tz'] = in_array($tz, DateTimeZone::listIdentifiers(), true) ? $tz : '';
 
         $window = intval(rcube_utils::get_input_value('_horus_prefetch_window', rcube_utils::INPUT_POST));
         $args['prefs']['horus_prefetch_window'] = max(0, min(3600, $window));
